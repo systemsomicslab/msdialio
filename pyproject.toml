@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "msdial-parsers"
+version = "0.1.0"
+description = "Readers for MS-DIAL binary output files"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["msgpack>=1.0", "lz4>=4.0"]
+license = { text = "MIT" }
+authors = [{ name = "MS-DIAL Parsers contributors" }]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+]
+
+[project.optional-dependencies]
+matrix = ["numpy>=1.24"]
+test = ["pytest>=8"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["msdial_parsers*"]
+exclude = ["tests*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
