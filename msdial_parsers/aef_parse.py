@@ -203,9 +203,5 @@ def summarize(spots: list[dict]) -> dict:
     }
 
 
-# Preserve the original raw, uppercase-key API beside ``read_aef``.
-from .raw.aef_parse import decode, decode_spots
-
-
 
 

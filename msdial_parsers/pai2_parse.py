@@ -166,9 +166,5 @@ def summarize(peaks: list[dict]) -> dict:
     }
 
 
-# Preserve the raw decoder API from the original standalone script.
-from .raw.pai2_parse import decode, decompress, describe, iter_objects, write_json
-
-
 
 

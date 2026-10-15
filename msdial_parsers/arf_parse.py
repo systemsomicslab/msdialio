@@ -413,10 +413,6 @@ def summarize(spots: list[dict]) -> dict:
     }
 
 
-# Preserve the low-level API exposed by the original standalone script.
-from .raw.arf_parse import decode, decompress, describe, iter_objects, write_json
-
-
 
 
 

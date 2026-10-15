@@ -148,9 +148,5 @@ def summarize(results: list[dict]) -> dict:
     }
 
 
-# Preserve the original full-layout decoder beside the interpreted reader.
-from .raw.dcl_parse import decode, decode_bytes
-
-
 
 
