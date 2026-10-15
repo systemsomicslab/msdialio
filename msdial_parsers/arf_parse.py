@@ -263,7 +263,8 @@ def _slim_row(row, shared_names: dict):
 
 
 def _convert_group(group: list, index: int, block_index: int, local_index: int) -> dict | None:
-    if not (isinstance(group, list) and len(group) >= 3 and all(isinstance(r, list) for r in group)):
+    if not (isinstance(group, list) and group
+            and all(_is_alignment_peak_row(row) for row in group)):
         return None
     rep = group[0]
     times = _convert_to_times(rep[15]) if len(rep) > 15 and isinstance(rep[15], list) else {}

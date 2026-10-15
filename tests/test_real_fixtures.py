@@ -1,0 +1,54 @@
+from pathlib import Path
+
+import pytest
+
+from msdial_parsers import read_aef, read_aef_spots, read_arf2, read_dcl, read_pai2
+from msdial_parsers.aef_parse import summarize as summarize_aef
+
+
+DATA = Path(__file__).parent / "data"
+
+
+def test_reads_arf2_fixture():
+    spots = read_arf2(DATA / "alignment_spots.arf2")
+
+    assert len(spots) == 187
+    assert spots[0]["MasterAlignmentID"] == 0
+    assert spots[0]["MassCenter"] == pytest.approx(139.00817)
+    assert spots[0]["IonMode"] == "Negative"
+
+
+def test_reads_pai2_fixture():
+    peaks = read_pai2(DATA / "sample_peaks.pai2")
+
+    assert len(peaks) == 364
+    assert peaks[0]["m/z"] == pytest.approx(157.86403)
+    assert peaks[0]["ion_mode"] == "Negative"
+
+
+@pytest.mark.parametrize(
+    ("filename", "expected_count", "expected_mz"),
+    [
+        ("alignment_msdec.dcl", 187, 139.00817),
+        ("sample_msdec.dcl", 364, 157.86403),
+    ],
+)
+def test_reads_dcl_fixtures(filename, expected_count, expected_mz):
+    results = read_dcl(DATA / filename)
+
+    assert len(results) == expected_count
+    assert results[0]["precursor_mz"] == pytest.approx(expected_mz)
+    assert results[0]["n_msms_peaks"] > 0
+
+
+def test_reads_aef_fixture_and_selected_trace():
+    path = DATA / "alignment_eic.aef"
+    spots = read_aef(path)
+    summary = summarize_aef(spots)
+    traces = read_aef_spots(path, [0], file_ids=[0])
+
+    assert len(spots) == 187
+    assert summary["total_points"] == 14684
+    assert traces[0]["spot_id"] == 0
+    assert traces[0]["samples"][0]["num_points"] == 41
+    assert len(traces[0]["samples"][0]["chromatogram"]) == 41
