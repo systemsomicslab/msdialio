@@ -73,6 +73,10 @@ rows = peak_table(spots)
 
 The package also provides `read_arf2`, `read_pai2`, `read_dcl`, `read_aef`, and helper functions in each reader module.
 
+The original low-level decoder APIs are also preserved. For example, `msdial_parsers.arf_parse.decode(path)` returns raw decoded MessagePack objects, while `read_arf(path)` returns interpreted spot records. Equivalent `decode` functions are available in `arf2_parse`, `pai2_parse`, `dcl_parse`, and `aef_parse`.
+
+The original standalone command line decoders are available as modules under `msdial_parsers.raw`, for example `python -m msdial_parsers.raw.arf_parse input.arf`.
+
 ## Command line
 
 ```bash

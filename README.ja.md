@@ -73,6 +73,10 @@ rows = peak_table(spots)
 
 対応する API は `read_arf`、`read_arf2`、`read_pai2`、`read_dcl`、`read_aef`、および各リーダーモジュールの補助関数です。
 
+元の低水準デコーダー API も利用できます。たとえば `msdial_parsers.arf_parse.decode(path)` は MessagePack を復号した生データを返し、`read_arf(path)` は解釈済みのスポット情報を返します。`arf2_parse`、`pai2_parse`、`dcl_parse`、`aef_parse` にも元の `decode` 関数があります。
+
+元の単体 CLI も `msdial_parsers.raw` 配下にあります。たとえば `python -m msdial_parsers.raw.arf_parse input.arf` で実行できます。
+
 ## コマンドライン
 
 ```bash

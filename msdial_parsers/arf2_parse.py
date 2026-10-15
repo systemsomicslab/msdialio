@@ -205,5 +205,9 @@ def summarize(spots: list[dict]) -> dict:
     }
 
 
+# Preserve the raw decoder API from the original standalone script.
+from .raw.arf2_parse import decode, decompress, describe, iter_objects, write_json
+
+
 
 
