@@ -15,5 +15,5 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - run: python -m pip install -e '.[test,numpy]'
+      - run: python -m pip install -e '.[test,matrix]'
       - run: python -m pytest
