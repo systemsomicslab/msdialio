@@ -39,6 +39,7 @@ from enum import Enum
 import msgpack
 
 from ._msgpack_lz4 import decompress_packed_msgpack
+from ._sources import open_binary_source
 
 
 class IonMode(Enum):
@@ -159,22 +160,9 @@ def _deserialize(data: bytes) -> list[dict]:
     return [record for raw in raw_spots if (record := _spot_record(raw)) is not None]
 
 
-def read_arf2(path) -> list[dict]:
-    with open(path, "rb") as f:
+def read_arf2(source) -> list[dict]:
+    """Read an ARF2 file from a path or binary stream; caller-owned streams stay open."""
+    with open_binary_source(source) as f:
         return _deserialize(f.read())
-
-
-def read_raw_spots(path) -> list[list]:
-    """生の AlignmentSpotProperty 配列の一覧（Key 番号で自分で引くとき用）。"""
-    with open(path, "rb") as f:
-        return list(_iter_raw_spots(_unpack_lz4_packed_msgpack(f.read())))
-
-
-def read_isotopic_peaks(path) -> dict:
-    """Key53 ``IsotopicPeaks``（代表試料の同位体ピークの生配列）を MasterAlignmentID ごとに返す。"""
-    return {int(_to_float(raw[0])): (raw[53] if len(raw) > 53 else None)
-            for raw in read_raw_spots(path)}
-
-
 
 

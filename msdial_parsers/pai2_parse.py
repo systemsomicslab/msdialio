@@ -37,6 +37,7 @@ from enum import Enum
 import msgpack
 
 from ._msgpack_lz4 import decompress_packed_msgpack
+from ._sources import open_binary_source
 
 
 class IonMode(Enum):
@@ -118,8 +119,9 @@ def _deserialize(data: bytes) -> list[dict]:
     return [_peak_record(d) for d in unpacked]
 
 
-def read_pai2(path) -> list[dict]:
-    with open(path, "rb") as f:
+def read_pai2(source) -> list[dict]:
+    """Read a PAI2 file from a path or binary stream; caller-owned streams stay open."""
+    with open_binary_source(source) as f:
         return _deserialize(f.read())
 
 

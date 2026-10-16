@@ -32,6 +32,8 @@ from __future__ import annotations
 
 import struct
 
+from ._sources import open_binary_source
+
 DCL_MAGIC = b"DC"
 
 
@@ -88,8 +90,9 @@ def _deserialize(raw: bytes, include_spectrum: bool = True,
     return results
 
 
-def read_dcl(path, include_spectrum: bool = True, top_n_peaks: int | None = None) -> list[dict]:
-    with open(path, "rb") as f:
+def read_dcl(source, include_spectrum: bool = True, top_n_peaks: int | None = None) -> list[dict]:
+    """Read a DCL file from a path or binary stream; caller-owned streams stay open."""
+    with open_binary_source(source) as f:
         return _deserialize(f.read(), include_spectrum=include_spectrum, top_n_peaks=top_n_peaks)
 
 

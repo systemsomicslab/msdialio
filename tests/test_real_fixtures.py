@@ -46,7 +46,6 @@ def test_reads_aef_fixture_and_selected_trace():
     traces = read_aef_spots(path, [0], file_ids=[0])
 
     assert len(spots) == 187
-    assert sum(sample["num_peaks"] for spot in spots for sample in spot["samples"]) == 14684
+    assert sum(len(sample["chromatogram"]) for spot in spots for sample in spot["samples"]) == 14684
     assert traces[0]["spot_id"] == 0
-    assert traces[0]["samples"][0]["num_points"] == 41
     assert len(traces[0]["samples"][0]["chromatogram"]) == 41

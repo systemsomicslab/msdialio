@@ -43,6 +43,8 @@ from enum import Enum
 import lz4.block
 import msgpack
 
+from ._sources import open_binary_source
+
 
 class IonMode(Enum):
     Positive = 0
@@ -273,7 +275,7 @@ def _deserialize(data: bytes, slim: bool = True) -> list[dict]:
     return results
 
 
-def read_arf(path, slim: bool = True) -> list[dict]:
+def read_arf(source, slim: bool = True) -> list[dict]:
     """``.arf`` ファイルを読んでスポット辞書のリストを返す。"""
-    with open(path, "rb") as f:
+    with open_binary_source(source) as f:
         return _deserialize(f.read(), slim=slim)
