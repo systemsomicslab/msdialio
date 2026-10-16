@@ -5,8 +5,7 @@
 複数サンプルの比較はアライン後の ``.arf``（arf_parse.py）を使う。
 
 MS/MS の実スペクトルは同名の ``.dcl`` にある。``.pai2`` の ``has_msms`` は
-「取得の参照がある」ことしか示さない。実スペクトルを付けるには
-``dcl_parse.attach_msms_to_features(peaks, dcl_parse.read_dcl(<同名.dcl>))``。
+「取得の参照がある」ことを示す。実スペクトルは ``.dcl`` から別に読み込む。
 ``.dcl`` の並び順（dcl_index）が ``.pai2`` のピーク順に対応する。
 
 ファイル構造:
@@ -33,11 +32,11 @@ Key 番号（ChromatogramPeakFeature）:
 
 from __future__ import annotations
 
-import io
 from enum import Enum
 
-import lz4.block
 import msgpack
+
+from ._msgpack_lz4 import decompress_packed_msgpack
 
 
 class IonMode(Enum):
@@ -52,14 +51,6 @@ class IonMode(Enum):
             return cls(val).name
         except ValueError:
             return cls.Unknown.name
-
-
-def deserialize_lz4_packed_msgpack(data: bytes):
-    _header, compressed = msgpack.unpackb(data, raw=False)
-    unpacker = msgpack.Unpacker(io.BytesIO(compressed), raw=False)
-    size = next(unpacker)
-    decompressed = lz4.block.decompress(compressed[unpacker.tell():], uncompressed_size=size)
-    return msgpack.unpackb(decompressed, raw=False, strict_map_key=False)
 
 
 def _convert_to_times(data) -> dict:
@@ -77,7 +68,7 @@ def _convert_to_times(data) -> dict:
     return result
 
 
-def peak_record(data: list) -> dict:
+def _peak_record(data: list) -> dict:
     """生の ChromatogramPeakFeature 1 個をピーク辞書にする。"""
     formula_data = data[26]
     formula = formula_data[0] if isinstance(formula_data, (list, tuple)) and formula_data else "Unknown"
@@ -120,51 +111,16 @@ def peak_record(data: list) -> dict:
     }
 
 
-def deserialize(data: bytes) -> list[dict]:
-    return [peak_record(d) for d in deserialize_lz4_packed_msgpack(data)]
+def _deserialize(data: bytes) -> list[dict]:
+    unpacked = msgpack.unpackb(
+        decompress_packed_msgpack(data), raw=False, strict_map_key=False
+    )
+    return [_peak_record(d) for d in unpacked]
 
 
 def read_pai2(path) -> list[dict]:
     with open(path, "rb") as f:
-        return deserialize(f.read())
-
-
-def flat_record(peak: dict) -> dict:
-    """CSV 向けに 1 段へ平らにする（time を rt/ri へ展開し、スペクトル列は外す）。"""
-    out = {k: v for k, v in peak.items()
-           if k not in ("time", "time_left", "time_right", "msms_spectrum", "collision_energies")}
-    out["rt"] = peak["time"].get("rt")
-    out["rt_left"] = peak["time_left"].get("rt")
-    out["rt_right"] = peak["time_right"].get("rt")
-    out["collision_energies"] = ";".join(str(e) for e in peak["collision_energies"])
-    return out
-
-
-def _is_annotated(name) -> bool:
-    if not isinstance(name, str):
-        return False
-    s = name.strip().lower()
-    return bool(s) and s != "unknown" and not s.startswith(("no ms2", "low score"))
-
-
-def summarize(peaks: list[dict]) -> dict:
-    if not peaks:
-        return {"total_peaks": 0}
-    mzs = [p["m/z"] for p in peaks if isinstance(p["m/z"], (int, float))]
-    rts = [p["time"]["rt"] for p in peaks if isinstance(p["time"].get("rt"), (int, float))]
-    modes: dict[str, int] = {}
-    for p in peaks:
-        modes[p["ion_mode"]] = modes.get(p["ion_mode"], 0) + 1
-    annotated = sum(1 for p in peaks if _is_annotated(p["name"]))
-    return {
-        "total_peaks": len(peaks),
-        "annotated": annotated,
-        "with_msms_reference": sum(1 for p in peaks if p["has_msms"]),
-        "mz_range": (min(mzs), max(mzs)) if mzs else None,
-        "rt_range": (min(rts), max(rts)) if rts else None,
-        "ion_modes": modes,
-    }
-
+        return _deserialize(f.read())
 
 
 

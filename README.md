@@ -20,20 +20,6 @@ Or use uv from the repository root:
 uv sync
 ```
 
-The `intensity_matrix` utility converts parsed `.arf` data into a numeric matrix and requires NumPy. Other reader APIs work without NumPy. If NumPy is missing when you call this utility, the error message explains how to install it.
-
-With pip:
-
-```bash
-python -m pip install ".[matrix]"
-```
-
-With uv:
-
-```bash
-uv sync --extra matrix
-```
-
 ### Install directly from GitHub
 
 Replace `OWNER/REPO` with the GitHub repository location.
@@ -44,34 +30,21 @@ Standard install with pip:
 python -m pip install "msdial-parsers @ git+https://github.com/OWNER/REPO.git"
 ```
 
-To use `intensity_matrix`:
-
-```bash
-python -m pip install "msdial-parsers[matrix] @ git+https://github.com/OWNER/REPO.git"
-```
-
 With uv, install into an existing virtual environment:
 
 ```bash
 uv pip install "msdial-parsers @ git+https://github.com/OWNER/REPO.git"
 ```
 
-To use `intensity_matrix`:
-
-```bash
-uv pip install "msdial-parsers[matrix] @ git+https://github.com/OWNER/REPO.git"
-```
-
 ## Python API
 
 ```python
-from msdial_parsers import read_arf, peak_table
+from msdial_parsers import read_arf
 
 spots = read_arf("AlignmentResult_PeakProperties.arf")
-rows = peak_table(spots)
 ```
 
-The package also provides `read_arf2`, `read_pai2`, `read_dcl`, `read_aef`, and helper functions in each reader module.
+The package-level API consists of readers: `read_arf2`, `read_pai2`, `read_dcl`, `read_aef`, and `read_aef_spots` are also available. The `.arf2` reader module additionally provides `read_raw_spots` and `read_isotopic_peaks` for specialized data access.
 
 ## Command line
 
@@ -85,7 +58,7 @@ Choose one of `aef`, `arf`, `arf2`, `dcl`, or `pai2`. Run `python -m msdial_pars
 ## Development
 
 ```bash
-python -m pip install -e ".[test,matrix]"
+python -m pip install -e ".[test]"
 python -m pytest
 ```
 

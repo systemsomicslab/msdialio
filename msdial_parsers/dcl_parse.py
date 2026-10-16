@@ -18,9 +18,8 @@ BinaryWriter が書く独自バイナリ（リトルエンディアン）。個�
 
 使い方（Python）::
 
-    from msdial_parsers.dcl_parse import read_dcl, find_msms
+    from msdial_parsers import read_dcl
     results = read_dcl("sample.dcl", top_n_peaks=50)
-    hits = find_msms(results, precursor_mz=760.585, rt=12.3)
 
 使い方（CLI）::
 
@@ -31,14 +30,13 @@ BinaryWriter が書く独自バイナリ（リトルエンディアン）。個�
 
 from __future__ import annotations
 
-import os
 import struct
 
 DCL_MAGIC = b"DC"
 
 
-def deserialize(raw: bytes, include_spectrum: bool = True,
-                top_n_peaks: int | None = None) -> list[dict]:
+def _deserialize(raw: bytes, include_spectrum: bool = True,
+                 top_n_peaks: int | None = None) -> list[dict]:
     """``.dcl`` のバイト列を MSDecResult 辞書のリストにする。
 
     include_spectrum: False なら MS/MS ピーク列を読まない（メタのみ・軽量）。
@@ -92,61 +90,7 @@ def deserialize(raw: bytes, include_spectrum: bool = True,
 
 def read_dcl(path, include_spectrum: bool = True, top_n_peaks: int | None = None) -> list[dict]:
     with open(path, "rb") as f:
-        return deserialize(f.read(), include_spectrum=include_spectrum, top_n_peaks=top_n_peaks)
-
-
-def find_msms(results: list[dict], precursor_mz: float, tol: float = 0.01,
-              rt: float | None = None, rt_tol: float = 0.2) -> list[dict]:
-    """precursor m/z（任意で RT）が一致し、MS/MS を持つ結果を返す。"""
-    return [r for r in results
-            if abs(r["precursor_mz"] - precursor_mz) <= tol
-            and (rt is None or abs(r["rt"] - rt) <= rt_tol)
-            and r["n_msms_peaks"] > 0]
-
-
-def find_dcl_for_pai2(pai2_path: str) -> str | None:
-    """``.pai2`` と同じ basename の ``.dcl`` を同じフォルダから探す。"""
-    base = pai2_path[:-len(".pai2")] if pai2_path.endswith(".pai2") else pai2_path
-    cand = base + ".dcl"
-    return cand if os.path.exists(cand) else None
-
-
-def attach_msms_to_features(features: list[dict], dcl_results: list[dict],
-                            mz_tol: float = 0.01) -> int:
-    """``.pai2`` のピーク（pai2_parse の辞書）に ``.dcl`` の MS/MS を索引対応で付ける。
-
-    precursor m/z が ``mz_tol`` を超えて食い違う組は、対応が崩れているとみなして飛ばす。
-    付けられた（MS/MS ピークが 1 本以上ある）件数を返す。
-    """
-    attached = 0
-    for feat, res in zip(features, dcl_results):
-        feat_mz = feat.get("m/z")
-        if isinstance(feat_mz, (int, float)) and abs(feat_mz - res["precursor_mz"]) > mz_tol:
-            continue
-        feat["msms_spectrum"] = res["msms_spectrum"]
-        feat["n_msms_peaks"] = res["n_msms_peaks"]
-        feat["msms_peak_count"] = res["n_msms_peaks"]
-        if res["n_msms_peaks"] > 0:
-            attached += 1
-    return attached
-
-
-def summarize(results: list[dict]) -> dict:
-    if not results:
-        return {"total_results": 0}
-    counts = sorted(r["n_msms_peaks"] for r in results if r["n_msms_peaks"] > 0)
-    mzs = [r["precursor_mz"] for r in results if r["precursor_mz"] > 0]
-    rts = [r["rt"] for r in results]
-    return {
-        "total_results": len(results),
-        "with_msms": len(counts),
-        "msms_rate_pct": round(len(counts) / len(results) * 100, 1),
-        "msms_peak_count_median": counts[len(counts) // 2] if counts else 0,
-        "msms_peak_count_max": counts[-1] if counts else 0,
-        "precursor_mz_range": (round(min(mzs), 4), round(max(mzs), 4)) if mzs else None,
-        "rt_range": (round(min(rts), 2), round(max(rts), 2)),
-    }
-
+        return _deserialize(f.read(), include_spectrum=include_spectrum, top_n_peaks=top_n_peaks)
 
 
 

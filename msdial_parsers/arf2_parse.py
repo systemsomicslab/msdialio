@@ -36,8 +36,9 @@ from __future__ import annotations
 import io
 from enum import Enum
 
-import lz4.block
 import msgpack
+
+from ._msgpack_lz4 import decompress_packed_msgpack
 
 
 class IonMode(Enum):
@@ -92,16 +93,13 @@ def _extract_times(data) -> dict:
     return result
 
 
-def deserialize_lz4_packed_msgpack(data: bytes) -> list:
-    """``[header, payload]`` を展開し、中の MessagePack オブジェクトを並びのまま返す。"""
-    _header, compressed = msgpack.unpackb(data, raw=False)
-    unpacker = msgpack.Unpacker(io.BytesIO(compressed), raw=False)
-    size = next(unpacker)
-    decompressed = lz4.block.decompress(compressed[unpacker.tell():], uncompressed_size=size)
+def _unpack_lz4_packed_msgpack(data: bytes) -> list:
+    """展開後の複数MessagePackオブジェクトをリストにする。"""
+    decompressed = decompress_packed_msgpack(data)
     return list(msgpack.Unpacker(io.BytesIO(decompressed), raw=False, strict_map_key=False))
 
 
-def iter_raw_spots(datas: list):
+def _iter_raw_spots(datas: list):
     """展開結果から AlignmentSpotProperty の生配列を順に返す。
 
     スポットを直接並べる形と、リストの入れ子に包む形の両方がある。
@@ -118,7 +116,7 @@ def iter_raw_spots(datas: list):
             yield d
 
 
-def spot_record(data: list) -> dict | None:
+def _spot_record(data: list) -> dict | None:
     """生の AlignmentSpotProperty 1 個をカタログ辞書にする。"""
     if not isinstance(data, list) or len(data) < 10:
         return None
@@ -155,54 +153,27 @@ def spot_record(data: list) -> dict | None:
     }
 
 
-def deserialize(data: bytes) -> list[dict]:
+def _deserialize(data: bytes) -> list[dict]:
     """``.arf2`` のバイト列をスポット辞書のリストにする。"""
-    return [r for r in (spot_record(s) for s in iter_raw_spots(deserialize_lz4_packed_msgpack(data))) if r]
+    raw_spots = _iter_raw_spots(_unpack_lz4_packed_msgpack(data))
+    return [record for raw in raw_spots if (record := _spot_record(raw)) is not None]
 
 
 def read_arf2(path) -> list[dict]:
     with open(path, "rb") as f:
-        return deserialize(f.read())
+        return _deserialize(f.read())
 
 
 def read_raw_spots(path) -> list[list]:
     """生の AlignmentSpotProperty 配列の一覧（Key 番号で自分で引くとき用）。"""
     with open(path, "rb") as f:
-        return list(iter_raw_spots(deserialize_lz4_packed_msgpack(f.read())))
+        return list(_iter_raw_spots(_unpack_lz4_packed_msgpack(f.read())))
 
 
 def read_isotopic_peaks(path) -> dict:
     """Key53 ``IsotopicPeaks``（代表試料の同位体ピークの生配列）を MasterAlignmentID ごとに返す。"""
     return {int(_to_float(raw[0])): (raw[53] if len(raw) > 53 else None)
             for raw in read_raw_spots(path)}
-
-
-def _is_annotated(name: str) -> bool:
-    s = (name or "").strip().lower()
-    return bool(s) and s != "unknown" and not s.startswith(("no ms2", "low score"))
-
-
-def summarize(spots: list[dict]) -> dict:
-    if not spots:
-        return {"total_spots": 0}
-    rts = [s["RT"] for s in spots]
-    mzs = [s["MassCenter"] for s in spots]
-    modes: dict[str, int] = {}
-    ontology: dict[str, int] = {}
-    for s in spots:
-        modes[s["IonMode"]] = modes.get(s["IonMode"], 0) + 1
-        if s["Ontology"].strip():
-            ontology[s["Ontology"]] = ontology.get(s["Ontology"], 0) + 1
-    annotated = sum(1 for s in spots if _is_annotated(s["Name"]))
-    return {
-        "total_spots": len(spots),
-        "annotated": annotated,
-        "annotation_rate_pct": round(annotated / len(spots) * 100, 1),
-        "rt_range": (min(rts), max(rts)),
-        "mz_range": (min(mzs), max(mzs)),
-        "ion_modes": modes,
-        "ontology_top": dict(sorted(ontology.items(), key=lambda kv: -kv[1])[:10]),
-    }
 
 
 

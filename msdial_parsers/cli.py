@@ -12,11 +12,11 @@ from . import aef_parse, arf2_parse, arf_parse, dcl_parse, pai2_parse
 
 
 _READERS = {
-    "aef": (aef_parse.read_aef, aef_parse.summarize),
-    "arf": (arf_parse.read_arf, arf_parse.summarize),
-    "arf2": (arf2_parse.read_arf2, arf2_parse.summarize),
-    "dcl": (dcl_parse.read_dcl, dcl_parse.summarize),
-    "pai2": (pai2_parse.read_pai2, pai2_parse.summarize),
+    "aef": aef_parse.read_aef,
+    "arf": arf_parse.read_arf,
+    "arf2": arf2_parse.read_arf2,
+    "dcl": dcl_parse.read_dcl,
+    "pai2": pai2_parse.read_pai2,
 }
 
 
@@ -29,10 +29,9 @@ def main(argv: list[str] | None = None) -> int:
     output.add_argument("--csv", metavar="PATH", help="write top-level record fields as CSV")
     args = parser.parse_args(argv)
 
-    read, summarize = _READERS[args.format]
+    read = _READERS[args.format]
     records = read(args.path)
     print(f"{args.path}: {len(records)} records")
-    print(summarize(records))
 
     if args.json:
         with open(args.json, "w", encoding="utf-8") as stream:

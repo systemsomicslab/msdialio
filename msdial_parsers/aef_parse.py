@@ -172,36 +172,3 @@ def read_aef_spots(path, spot_ids, file_ids=None, *, max_total_points: int = 2_0
     return spots
 
 
-def search_by_mz_range(spots: list[dict], min_mz: float, max_mz: float) -> list[dict]:
-    return [s for s in spots if min_mz <= s.get("mz", 0.0) <= max_mz]
-
-
-def search_by_rt_range(spots: list[dict], min_rt: float, max_rt: float) -> list[dict]:
-    return [s for s in spots if min_rt <= s.get("rt", 0.0) <= max_rt]
-
-
-def top_by_max_intensity(spots: list[dict], top_n: int = 20) -> list[dict]:
-    """サンプル間で最大のクロマトグラム最大強度で降順に並べる（peak_top は RT 座標なので使わない）。"""
-    ranked = [{
-        "spot_id": s["spot_id"], "rt": s["rt"], "mz": s["mz"], "num_samples": s["num_samples"],
-        "max_intensity": max((x.get("max_intensity", 0.0) for x in s["samples"]), default=0.0),
-    } for s in spots]
-    return sorted(ranked, key=lambda x: x["max_intensity"], reverse=True)[:top_n]
-
-
-def summarize(spots: list[dict]) -> dict:
-    if not spots:
-        return {"total_spots": 0}
-    samples = [x for s in spots for x in s["samples"]]
-    return {
-        "total_spots": len(spots),
-        "rt_range": (min(s["rt"] for s in spots), max(s["rt"] for s in spots)),
-        "mz_range": (min(s["mz"] for s in spots), max(s["mz"] for s in spots)),
-        "total_traces": len(samples),
-        "total_points": sum(x["num_peaks"] for x in samples),
-        "unique_file_ids": sorted({x["file_id"] for x in samples}),
-    }
-
-
-
-
