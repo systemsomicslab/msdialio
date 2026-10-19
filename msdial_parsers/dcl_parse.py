@@ -54,9 +54,10 @@ def _read_exact(stream, size: int) -> bytes:
 
 def _read_records(stream, dcl_indices: Iterable[int] | None = None) -> list[dict]:
     base_offset = stream.tell()
-    header = _read_exact(stream, 11)
-    if header[:2] != DCL_MAGIC:
+    magic = _read_exact(stream, 2)
+    if magic != DCL_MAGIC:
         raise ValueError("先頭が 'DC' でないため .dcl 形式ではありません。")
+    header = magic + _read_exact(stream, 9)
 
     count = struct.unpack_from("<i", header, 7)[0]
     if count < 0:
