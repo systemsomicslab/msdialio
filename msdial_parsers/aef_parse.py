@@ -49,8 +49,6 @@ def read_aef(
     *,
     spot_ids: Iterable[int] | None = None,
     file_ids: Iterable[int] | None = None,
-    max_total_points: int | None = None,
-    strict: bool = False,
 ) -> list[dict]:
     """Read all AEF spots, or selected spots and sample chromatograms.
 
@@ -60,20 +58,14 @@ def read_aef(
     spots always include their metadata and return a ``samples`` list; samples
     include ``file_id``, ``peak_top`` (RT coordinate), and ``chromatogram``.
 
-    ``max_total_points`` optionally limits the number of returned chromatogram
-    points. ``strict=True`` raises for out-of-range spot IDs and requested
-    FileIDs missing from a selected spot; otherwise out-of-range spots and
-    missing FileIDs are omitted. Accepts a path or seekable binary stream. A
-    caller-provided stream remains open and is read from its current position.
+    Raises ``ValueError`` when a requested spot or FileID is missing. Accepts a
+    path or seekable binary stream. A caller-provided stream remains open and is
+    read from its current position.
     """
     requested_spots = None if spot_ids is None else sorted(set(spot_ids))
     requested_file_ids = None if file_ids is None else list(file_ids)
     requested_file_set = None if requested_file_ids is None else set(requested_file_ids)
-    if max_total_points is not None and max_total_points < 0:
-        raise ValueError("max_total_points must be non-negative or None")
-
     spots = []
-    total_points = 0
     with open_binary_source(source) as stream:
         base_offset = stream.tell()
         stream.seek(0, os.SEEK_END)
@@ -96,9 +88,7 @@ def read_aef(
 
         for spot_id in selected_spots:
             if not 0 <= spot_id < num_spots:
-                if strict:
-                    raise ValueError(f"spot_id {spot_id} is out of range for {num_spots} EIC spots")
-                continue
+                raise ValueError(f"spot_id {spot_id} is out of range for {num_spots} EIC spots")
 
             stream.seek(base_offset + _HEADER_SIZE + 8 * spot_id)
             pointer = struct.unpack("<q", _read_exact(stream, 8, "spot pointer"))[0]
@@ -125,14 +115,8 @@ def read_aef(
                 if requested_file_set is not None and file_id not in requested_file_set:
                     stream.seek(point_bytes, os.SEEK_CUR)
                     continue
-                if max_total_points is not None and total_points + num_points > max_total_points:
-                    raise ValueError(
-                        f"Selected EIC traces exceed the {max_total_points} point limit; "
-                        "select fewer spots or file_ids"
-                    )
                 raw = _read_exact(stream, point_bytes, f"spot {spot_id} FileID {file_id} chromatogram")
                 chromatogram = [[float(x), float(y)] for x, y in struct.iter_unpack("<ff", raw)]
-                total_points += num_points
                 found_file_ids.add(file_id)
                 samples.append({
                     "file_id": file_id,
@@ -140,7 +124,7 @@ def read_aef(
                     "chromatogram": chromatogram,
                 })
 
-            if strict and requested_file_set is not None:
+            if requested_file_set is not None:
                 missing = [file_id for file_id in requested_file_ids if file_id not in found_file_ids]
                 if missing:
                     raise ValueError(

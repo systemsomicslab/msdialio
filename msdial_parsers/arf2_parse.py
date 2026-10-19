@@ -154,15 +154,31 @@ def _spot_record(data: list) -> dict | None:
     }
 
 
-def _deserialize(data: bytes) -> list[dict]:
+def _deserialize(data: bytes, slim: bool = True) -> list[dict]:
     """``.arf2`` のバイト列をスポット辞書のリストにする。"""
     raw_spots = _iter_raw_spots(_unpack_lz4_packed_msgpack(data))
-    return [record for raw in raw_spots if (record := _spot_record(raw)) is not None]
+    records = []
+    for raw in raw_spots:
+        record = _spot_record(raw)
+        if record is None:
+            continue
+        records.append({key: record[key] for key in _SLIM_FIELDS} if slim else record)
+    return records
 
 
-def read_arf2(source) -> list[dict]:
-    """Read an ARF2 file from a path or binary stream; caller-owned streams stay open."""
+_SLIM_FIELDS = (
+    "MasterAlignmentID", "AlignmentID", "RT", "MassCenter", "IonMode", "Name", "HeightAverage",
+)
+
+
+def read_arf2(source, slim: bool = True) -> list[dict]:
+    """Read ARF2 spot records.
+
+    ``slim=True`` keeps identifiers, primary spot measurements, ion mode, and
+    name. Set ``slim=False`` to include identification and quality metadata.
+    Accepts a path or binary stream; caller-owned streams stay open.
+    """
     with open_binary_source(source) as f:
-        return _deserialize(f.read())
+        return _deserialize(f.read(), slim=slim)
 
 

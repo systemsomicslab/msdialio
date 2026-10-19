@@ -241,8 +241,6 @@ def _convert_group(group: list, index: int, block_index: int, local_index: int) 
         "Name": _decode(rep[24]) if len(rep) > 24 else None,
         "HeightAverage": rep[18] if len(rep) > 18 else None,
         "AlignedPeakProperties": group,
-        "SourceBlockIndex": block_index,
-        "SourceLocalIndex": local_index,
     }
 
 

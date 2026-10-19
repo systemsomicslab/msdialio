@@ -112,17 +112,33 @@ def _peak_record(data: list) -> dict:
     }
 
 
-def _deserialize(data: bytes) -> list[dict]:
+def _deserialize(data: bytes, slim: bool = True) -> list[dict]:
     unpacked = msgpack.unpackb(
         decompress_packed_msgpack(data), raw=False, strict_map_key=False
     )
-    return [_peak_record(d) for d in unpacked]
+    peaks = []
+    for raw_peak in unpacked:
+        peak = _peak_record(raw_peak)
+        peaks.append({key: peak[key] for key in _SLIM_FIELDS} if slim else peak)
+    return peaks
 
 
-def read_pai2(source) -> list[dict]:
-    """Read a PAI2 file from a path or binary stream; caller-owned streams stay open."""
+_SLIM_FIELDS = (
+    "id", "name", "m/z", "time", "peak_height", "peak_area", "ion_mode",
+    "has_msms", "ms2_raw_id", "msms_peak_count",
+)
+
+
+def read_pai2(source, slim: bool = True) -> list[dict]:
+    """Read PAI2 peak records.
+
+    ``slim=True`` keeps peak identifiers, primary measurements, ion mode, and
+    MS/MS availability. Set ``slim=False`` to include boundaries, annotations,
+    and the embedded spectrum. Accepts a path or binary stream; caller-owned
+    streams stay open.
+    """
     with open_binary_source(source) as f:
-        return _deserialize(f.read())
+        return _deserialize(f.read(), slim=slim)
 
 
 
