@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from msdial_parsers.arf_parse import read_arf
+from msdialio.arf_parse import read_arf
 
 
 DATA = Path(__file__).parent / "data"

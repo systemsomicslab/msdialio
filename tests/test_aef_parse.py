@@ -2,7 +2,7 @@ import struct
 
 import pytest
 
-from msdial_parsers.aef_parse import read_aef
+from msdialio.aef_parse import read_aef
 
 
 def test_reads_empty_css1_file(tmp_path):

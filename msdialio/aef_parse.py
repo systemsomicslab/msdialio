@@ -6,7 +6,7 @@ ignored because they are known to be incorrect in current files.
 
 Examples::
 
-    from msdial_parsers import read_aef
+    from msdialio import read_aef
 
     spots = read_aef("AlignmentResult.EIC.aef")
     selected = read_aef("AlignmentResult.EIC.aef", spot_ids=[12, 345], file_ids=[0, 1])

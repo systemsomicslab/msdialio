@@ -18,13 +18,13 @@ BinaryWriter が書く独自バイナリ（リトルエンディアン）。個�
 
 使い方（Python）::
 
-    from msdial_parsers import read_dcl
+    from msdialio import read_dcl
     results = read_dcl("sample.dcl")
     selected = read_dcl("aligned.dcl", dcl_indices=[12, 345])
 
 使い方（CLI）::
 
-    python -m msdial_parsers dcl <path.dcl> [--csv msdec.csv]
+    python -m msdialio dcl <path.dcl> [--csv msdec.csv]
 
 依存: 標準ライブラリのみ。切り出し元: metabolomix/dcl/reader.py。
 """

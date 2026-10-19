@@ -1,6 +1,6 @@
 import pytest
 
-from msdial_parsers.dcl_parse import _deserialize
+from msdialio.dcl_parse import _deserialize
 
 
 def test_rejects_invalid_magic():

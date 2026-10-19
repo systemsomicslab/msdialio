@@ -1,34 +1,7 @@
-﻿"""MS-DIAL ``.arf2``（アラインメントのスポット代表カタログ）の単体パーサ。
+"""Read stored alignment spot representatives from ARF2 files.
 
-``AlignmentResult_<timestamp>.arf2`` は、各スポットの代表値（m/z・RT・平均強度）と
-同定情報（名前・組成式・Ontology・SMILES・InChIKey・付加体）と品質指標を持つ。
-**サンプル別の強度は持たない**——サンプル間比較には ``.arf``（arf_parse.py）を使い、
-``MasterAlignmentID`` で突き合わせる。
-
-ファイル構造:
-  ``[header, payload]`` の MessagePack 1 個。payload は「展開後サイズ ＋ LZ4 ブロック」。
-  展開後は ``AlignmentSpotProperty`` 配列の並び（入れ子のリストに包まれていることもある）。
-
-Key 番号（AlignmentSpotProperty）:
-  0 MasterAlignmentID / 1 AlignmentID / 4 TimesCenter / 5 MassCenter / 11 IonMode /
-  12 Name / 13 Formula / 14 Ontology / 15 SMILES / 16 InChIKey / 31 HeightAverage /
-  32-33 HeightMin/Max / 34 PeakWidthAverage / 35-37 SignalToNoise Ave/Max/Min /
-  43-44 MassMin/Max / 49 FillPercentage / 51 MonoIsotopicPercentage /
-  53 IsotopicPeaks / 54 AdductType
-
-使い方（Python）::
-
-    from msdial_parsers.arf2_parse import read_arf2
-    spots = read_arf2("AlignmentResult_....arf2")
-
-使い方（CLI）::
-
-    python -m msdial_parsers arf2 <path.arf2> [--csv spots.csv]
-
-注意: ``Name`` が付いていても確定同定とは限らない（``Unknown`` / ``no MS2:`` /
-``low score:`` などの接頭辞を見る）。
-
-依存: msgpack, lz4。切り出し元: metabolomix/arf2/reader.py。
+Use ARF for sample-level peaks. Validate file ordinals against stored alignment
+identifiers before joining records across files.
 """
 
 from __future__ import annotations

@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from msdial_parsers import read_aef, read_arf2, read_dcl, read_pai2
+from msdialio import read_aef, read_arf2, read_dcl, read_pai2
 
 
 DATA = Path(__file__).parent / "data"

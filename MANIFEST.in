@@ -1,0 +1,3 @@
+include README.ja.md
+recursive-include tests *.py
+recursive-include tests/data *

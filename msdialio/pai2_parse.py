@@ -1,34 +1,4 @@
-"""MS-DIAL ``.pai2``（1 測定ファイル分のピーク一覧）の単体パーサ。
-
-``<測定名>_<timestamp>.pai2`` は、1 サンプルを個別にピーク検出した結果
-（``ChromatogramPeakFeature`` の並び）。**サンプル間比較はできない**——
-複数サンプルの比較はアライン後の ``.arf``（arf_parse.py）を使う。
-
-MS/MS の実スペクトルは同名の ``.dcl`` にある。``.pai2`` の ``has_msms`` は
-「取得の参照がある」ことを示す。実スペクトルは ``.dcl`` から別に読み込む。
-``.dcl`` の並び順（dcl_index）が ``.pai2`` のピーク順に対応する。
-
-ファイル構造:
-  ``[header, payload]`` の MessagePack 1 個。payload は「展開後サイズ ＋ LZ4 ブロック」。
-  展開後は ChromatogramPeakFeature 配列のリスト。
-
-Key 番号（ChromatogramPeakFeature）:
-  3/4/5 ChromXsLeft/Top/Right / 6/7/8 PeakHeightLeft/Top/Right / 9 PeakAreaAboveZero /
-  10 PeakAreaAboveBaseline / 11 PeakID / 18 MS2RawSpectrumID / 19 MS2RawSpectrumID2CE /
-  22 IonMode / 24 Spectrum / 25 Name / 26 Formula / 27 Ontology / 28 SMILES / 29 InChIKey /
-  30 AdductType / 31 CollisionCrossSection / 38 Comment / 40 PeakShape（[1] = S/N）/ 43 Mass
-
-使い方（Python）::
-
-    from msdial_parsers.pai2_parse import read_pai2
-    peaks = read_pai2("sample_202605141515.pai2")
-
-使い方（CLI）::
-
-    python -m msdial_parsers pai2 <path.pai2> [--csv peaks.csv]
-
-依存: msgpack, lz4。切り出し元: metabolomix/pai2/reader.py。
-"""
+"""Read individual-sample peak features from PAI2 files."""
 
 from __future__ import annotations
 

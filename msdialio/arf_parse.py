@@ -1,38 +1,4 @@
-"""MS-DIAL ``.arf``（アライン後のサンプル別ピーク）の単体パーサ。
-
-``AlignmentResult_<timestamp>_PeakProperties.arf`` は、アラインメントの各スポット
-（= 1 特徴量）について、全サンプル分の ``AlignmentChromPeakFeature`` 行を持つ。
-サンプル間比較（正規化・PCA・差次的解析）の主データ源はこれ。同じフォルダの
-``*_DriftSopts.arf`` はイオンモビリティ用で、通常は空（数十バイト）。
-
-ファイル構造:
-  トップレベルの MessagePack ストリームに 1 個以上の ``[header, payload]`` が並ぶ。
-  payload は「展開後サイズ（msgpack int）＋ LZ4 ブロック」。展開すると、
-  スポットのグループ（= サンプル行のリスト）を内包するコンテナ配列が現れる。
-  1 ブロックが展開後 1 GB 近くになることがあるので、グループ単位で逐次に解く。
-
-行（AlignmentChromPeakFeature）の Key 番号:
-  0 FileID / 1 FileName / 2 MasterPeakID（負 = gap-fill）/ 3 PeakID / 9 MS2RawSpectrumID /
-  10 MS2RawSpectrumID2CE（非空 dict = MS/MS 取得済み）/ 15 ChromXs（RT 等）/
-  18 PeakHeightTop / 20 PeakAreaAboveZero / 21 PeakAreaAboveBaseline / 22 Mass /
-  23 IonMode / 24 Name / 37 PeakShape = [EstimatedNoise, SignalToNoise, ...]
-
-使い方（Python）::
-
-    from msdial_parsers import read_arf
-    spots = read_arf("AlignmentResult_..._PeakProperties.arf")
-
-使い方（CLI）::
-
-    python -m msdial_parsers arf <path.arf> [--csv peaks.csv]
-
-注意:
-  - gap-fill（``is_gap_filled=True``）は未検出サンプルに MS-DIAL が補間した値で、
-    実検出ではない。検出率を数えるときは除く。
-  - スポットの ``Name`` は代表サンプルの行から取ったもの。同定の正準は ``.arf2``。
-
-依存: msgpack, lz4。切り出し元: metabolomix/arf/reader.py。
-"""
+"""Read sample-level alignment peak properties from ARF files."""
 
 from __future__ import annotations
 
@@ -272,6 +238,11 @@ def _deserialize(data: bytes, slim: bool = True) -> list[dict]:
 
 
 def read_arf(source, slim: bool = True) -> list[dict]:
-    """``.arf`` ファイルを読んでスポット辞書のリストを返す。"""
+    """Read spot-ordered sample peaks as SpotIndex and SamplePeaks.
+
+    SpotIndex is a file ordinal, not an inferred alignment identifier.
+    slim=False includes additional annotations and spectrum references.
+    Accepts a path or binary stream; caller-owned streams stay open.
+    """
     with open_binary_source(source) as f:
         return _deserialize(f.read(), slim=slim)
