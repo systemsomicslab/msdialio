@@ -204,69 +204,66 @@ def _is_alignment_peak_row(row) -> bool:
             and isinstance(row[18], (int, float)))
 
 
-#: Keep the primary identifiers, measurements, and MS/MS references in slim rows.
-_RETAINED_ROW_KEYS = (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 18, 20, 21, 22)
+def _sample_peak(row: list, *, slim: bool) -> dict:
+    """Convert one AlignmentChromPeakFeature row to named Python fields."""
+    times = _convert_to_times(row[15]) if len(row) > 15 and isinstance(row[15], list) else {}
+
+    def optional_time(name):
+        value = times.get(name)
+        return None if value is None or value == -1 else value
+
+    record = {
+        "file_id": row[0] if len(row) > 0 else None,
+        "file_name": _decode(row[1]) if len(row) > 1 else None,
+        "master_peak_id": row[2] if len(row) > 2 else None,
+        "peak_id": row[3] if len(row) > 3 else None,
+        "rt": optional_time("rt"),
+        "ri": optional_time("ri"),
+        "drift_time": optional_time("dt"),
+        "m/z": row[22] if len(row) > 22 else None,
+        "peak_height_top": row[18] if len(row) > 18 else None,
+        "peak_area_above_zero": row[20] if len(row) > 20 else None,
+        "peak_area_above_baseline": row[21] if len(row) > 21 else None,
+        "ion_mode": IonMode.from_int(row[23]) if len(row) > 23 else IonMode.Unknown.name,
+        "name": _decode(row[24]) if len(row) > 24 else None,
+        "formula": _decode(row[25][0]) if len(row) > 25 and isinstance(row[25], list) and row[25] else None,
+    }
+    if slim:
+        return record
+
+    record.update({
+        "ms2_raw_spectrum_id": row[9] if len(row) > 9 else None,
+        "ms2_raw_spectrum_id_2ce": row[10] if len(row) > 10 else None,
+        "ontology": _decode(row[26]) if len(row) > 26 else None,
+        "smiles": _decode(row[27]) if len(row) > 27 else None,
+        "inchi_key": _decode(row[28]) if len(row) > 28 else None,
+        "adduct_type": row[36] if len(row) > 36 else None,
+        "peak_shape": row[37] if len(row) > 37 else None,
+    })
+    return record
 
 
-def _slim_row(row, shared_names: dict):
-    """既知の主要フィールドだけを残して行を細くする（生の行は 1 行 6.5 KB ある）。"""
-    if not isinstance(row, list):
-        return row
-    slim = [None] * len(row)  # 長さは保つ（len(row) > 25 の判定を変えない）
-    for key in _RETAINED_ROW_KEYS:
-        if key < len(row):
-            slim[key] = row[key]
-    if len(slim) > 1 and isinstance(slim[1], str):
-        slim[1] = shared_names.setdefault(slim[1], slim[1])  # 同じファイル名 str を共有
-    rt = _rt_of(row)
-    if rt is not None:
-        slim[15] = [[1, [rt]]]
-    if len(row) > 37 and isinstance(row[37], list):
-        slim[37] = row[37][:2]
-    return slim
-
-
-def _convert_group(group: list, index: int, block_index: int, local_index: int) -> dict | None:
+def _convert_group(group: list, index: int) -> dict | None:
     if not (isinstance(group, list) and group
             and all(_is_alignment_peak_row(row) for row in group)):
         return None
-    rep = group[0]
-    times = _convert_to_times(rep[15]) if len(rep) > 15 and isinstance(rep[15], list) else {}
     return {
-        "MasterAlignmentID": index,
-        "AlignmentID": index,
-        "RT": times.get("rt"),
-        "RI": times.get("ri"),
-        "DriftTime": times.get("dt"),
-        "m/z": rep[22] if len(rep) > 22 else None,
-        "IonMode": IonMode.from_int(rep[23]) if len(rep) > 23 else IonMode.Unknown.name,
-        "Name": _decode(rep[24]) if len(rep) > 24 else None,
-        "AlignedPeakProperties": group,
+        "spot_index": index,
+        "sample_peaks": [_sample_peak(row, slim=True) for row in group],
     }
 
 
-# --------------------------------------------------------------------------
-# 公開 API
-# --------------------------------------------------------------------------
-
 def _deserialize(data: bytes, slim: bool = True) -> list[dict]:
-    """``.arf`` のバイト列をスポット辞書のリストにする。
-
-    各スポットは ``MasterAlignmentID`` / ``RT`` / ``RI`` / ``DriftTime`` / ``m/z`` /
-    ``IonMode`` / ``Name`` と、サンプル別行 ``AlignedPeakProperties`` を持つ。
-    ``slim=True``（既定）は未使用の Key を落としてメモリを抑える。
-    生の行を全部残したいとき（未知の Key を調べるとき）は ``slim=False``。
-    """
+    """Convert each spot group into a spot index and named sample peak rows."""
     results = []
     rows = 0
-    shared_names: dict[str, str] = {}
     try:
-        for index, (block_index, local_index, group) in enumerate(_iter_peak_groups(data)):
-            spot = _convert_group(group, index, block_index, local_index)
+        for index, (_block_index, _local_index, group) in enumerate(_iter_peak_groups(data)):
+            spot = _convert_group(group, index)
             if spot is None:
                 continue
-            if slim:
-                spot["AlignedPeakProperties"] = [_slim_row(r, shared_names) for r in group]
+            if not slim:
+                spot["sample_peaks"] = [_sample_peak(row, slim=False) for row in group]
             results.append(spot)
             rows += len(group)
     except MemoryError as exc:
