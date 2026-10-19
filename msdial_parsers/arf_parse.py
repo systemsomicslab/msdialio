@@ -213,32 +213,32 @@ def _sample_peak(row: list, *, slim: bool) -> dict:
         return None if value is None or value == -1 else value
 
     record = {
-        "file_id": row[0] if len(row) > 0 else None,
-        "file_name": _decode(row[1]) if len(row) > 1 else None,
-        "master_peak_id": row[2] if len(row) > 2 else None,
-        "peak_id": row[3] if len(row) > 3 else None,
-        "rt": optional_time("rt"),
-        "ri": optional_time("ri"),
-        "drift_time": optional_time("dt"),
-        "m/z": row[22] if len(row) > 22 else None,
-        "peak_height_top": row[18] if len(row) > 18 else None,
-        "peak_area_above_zero": row[20] if len(row) > 20 else None,
-        "peak_area_above_baseline": row[21] if len(row) > 21 else None,
-        "ion_mode": IonMode.from_int(row[23]) if len(row) > 23 else IonMode.Unknown.name,
-        "name": _decode(row[24]) if len(row) > 24 else None,
-        "formula": _decode(row[25][0]) if len(row) > 25 and isinstance(row[25], list) and row[25] else None,
+        "FileID": row[0] if len(row) > 0 else None,
+        "FileName": _decode(row[1]) if len(row) > 1 else None,
+        "MasterPeakID": row[2] if len(row) > 2 else None,
+        "PeakID": row[3] if len(row) > 3 else None,
+        "RT": optional_time("rt"),
+        "RI": optional_time("ri"),
+        "DriftTime": optional_time("dt"),
+        "Mz": row[22] if len(row) > 22 else None,
+        "PeakHeightTop": row[18] if len(row) > 18 else None,
+        "PeakAreaAboveZero": row[20] if len(row) > 20 else None,
+        "PeakAreaAboveBaseline": row[21] if len(row) > 21 else None,
+        "IonMode": IonMode.from_int(row[23]) if len(row) > 23 else IonMode.Unknown.name,
+        "Name": _decode(row[24]) if len(row) > 24 else None,
+        "Formula": _decode(row[25][0]) if len(row) > 25 and isinstance(row[25], list) and row[25] else None,
     }
     if slim:
         return record
 
     record.update({
-        "ms2_raw_spectrum_id": row[9] if len(row) > 9 else None,
-        "ms2_raw_spectrum_id_2ce": row[10] if len(row) > 10 else None,
-        "ontology": _decode(row[26]) if len(row) > 26 else None,
-        "smiles": _decode(row[27]) if len(row) > 27 else None,
-        "inchi_key": _decode(row[28]) if len(row) > 28 else None,
-        "adduct_type": row[36] if len(row) > 36 else None,
-        "peak_shape": row[37] if len(row) > 37 else None,
+        "MS2RawSpectrumID": row[9] if len(row) > 9 else None,
+        "MS2RawSpectrumID2CE": row[10] if len(row) > 10 else None,
+        "Ontology": _decode(row[26]) if len(row) > 26 else None,
+        "SMILES": _decode(row[27]) if len(row) > 27 else None,
+        "InChIKey": _decode(row[28]) if len(row) > 28 else None,
+        "AdductType": row[36] if len(row) > 36 else None,
+        "PeakShape": row[37] if len(row) > 37 else None,
     })
     return record
 
@@ -248,8 +248,8 @@ def _convert_group(group: list, index: int) -> dict | None:
             and all(_is_alignment_peak_row(row) for row in group)):
         return None
     return {
-        "spot_index": index,
-        "sample_peaks": [_sample_peak(row, slim=True) for row in group],
+        "SpotIndex": index,
+        "SamplePeaks": [_sample_peak(row, slim=True) for row in group],
     }
 
 
@@ -263,7 +263,7 @@ def _deserialize(data: bytes, slim: bool = True) -> list[dict]:
             if spot is None:
                 continue
             if not slim:
-                spot["sample_peaks"] = [_sample_peak(row, slim=False) for row in group]
+                spot["SamplePeaks"] = [_sample_peak(row, slim=False) for row in group]
             results.append(spot)
             rows += len(group)
     except MemoryError as exc:

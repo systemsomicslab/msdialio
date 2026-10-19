@@ -21,8 +21,12 @@ def test_reads_pai2_fixture():
     peaks = read_pai2(DATA / "sample_peaks.pai2")
 
     assert len(peaks) == 364
-    assert peaks[0]["m/z"] == pytest.approx(157.86403)
-    assert peaks[0]["ion_mode"] == "Negative"
+    assert peaks[0]["Mz"] == pytest.approx(157.86403)
+    assert peaks[0]["IonMode"] == "Negative"
+    assert "PeakHeightTop" in peaks[0] and "PeakAreaAboveZero" in peaks[0]
+    assert "MS2RawSpectrumID" in peaks[0]
+    assert "RT" in peaks[0] and "RI" in peaks[0] and "DriftTime" in peaks[0]
+    assert "time" not in peaks[0]
 
 
 @pytest.mark.parametrize(
