@@ -236,10 +236,11 @@ def _convert_group(group: list, index: int, block_index: int, local_index: int) 
         "MasterAlignmentID": index,
         "AlignmentID": index,
         "RT": times.get("rt"),
-        "MassCenter": rep[22] if len(rep) > 22 else None,
+        "RI": times.get("ri"),
+        "DriftTime": times.get("dt"),
+        "m/z": rep[22] if len(rep) > 22 else None,
         "IonMode": IonMode.from_int(rep[23]) if len(rep) > 23 else IonMode.Unknown.name,
         "Name": _decode(rep[24]) if len(rep) > 24 else None,
-        "HeightAverage": rep[18] if len(rep) > 18 else None,
         "AlignedPeakProperties": group,
     }
 
@@ -251,8 +252,8 @@ def _convert_group(group: list, index: int, block_index: int, local_index: int) 
 def _deserialize(data: bytes, slim: bool = True) -> list[dict]:
     """``.arf`` のバイト列をスポット辞書のリストにする。
 
-    各スポットは ``MasterAlignmentID`` / ``RT`` / ``MassCenter`` / ``IonMode`` /
-    ``Name`` / ``HeightAverage`` と、生の行リスト ``AlignedPeakProperties`` を持つ。
+    各スポットは ``MasterAlignmentID`` / ``RT`` / ``RI`` / ``DriftTime`` / ``m/z`` /
+    ``IonMode`` / ``Name`` と、サンプル別行 ``AlignedPeakProperties`` を持つ。
     ``slim=True``（既定）は未使用の Key を落としてメモリを抑える。
     生の行を全部残したいとき（未知の Key を調べるとき）は ``slim=False``。
     """
