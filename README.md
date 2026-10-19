@@ -44,7 +44,7 @@ from msdial_parsers import read_arf
 spots = read_arf("AlignmentResult_PeakProperties.arf")
 ```
 
-The package-level API consists of readers: `read_arf`, `read_arf2`, `read_pai2`, `read_dcl`, `read_aef`, and `read_aef_spots`.
+The package-level API consists of readers: `read_arf`, `read_arf2`, `read_pai2`, `read_dcl`, and `read_aef`. `read_aef` accepts optional `spot_ids` and `file_ids` to read selected chromatograms directly.
 
 ## Command line
 

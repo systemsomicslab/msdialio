@@ -42,7 +42,7 @@ from msdial_parsers import read_arf
 spots = read_arf("AlignmentResult_PeakProperties.arf")
 ```
 
-パッケージのトップレベルAPIは読み込み関数です。`read_arf`、`read_arf2`、`read_pai2`、`read_dcl`、`read_aef`、`read_aef_spots` を利用できます。
+パッケージのトップレベルAPIは読み込み関数です。`read_arf`、`read_arf2`、`read_pai2`、`read_dcl`、`read_aef` を利用できます。`read_aef` は `spot_ids` と `file_ids` を指定して、対象のクロマトグラムだけを直接読み込めます。
 
 ## コマンドライン
 

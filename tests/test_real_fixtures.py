@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from msdial_parsers import read_aef, read_aef_spots, read_arf2, read_dcl, read_pai2
+from msdial_parsers import read_aef, read_arf2, read_dcl, read_pai2
 
 
 DATA = Path(__file__).parent / "data"
@@ -43,7 +43,7 @@ def test_reads_dcl_fixtures(filename, expected_count, expected_mz):
 def test_reads_aef_fixture_and_selected_trace():
     path = DATA / "alignment_eic.aef"
     spots = read_aef(path)
-    traces = read_aef_spots(path, [0], file_ids=[0])
+    traces = read_aef(path, spot_ids=[0], file_ids=[0])
 
     assert len(spots) == 187
     assert sum(len(sample["chromatogram"]) for spot in spots for sample in spot["samples"]) == 14684
