@@ -104,6 +104,38 @@ Proteomics・EAD lipid DBはレコードを解釈せず、`Data` にバイト列
 `References=None` とします。現在のZIP構造と旧来の入れ子ZIP、Windowsの区切り文字に対応します。
 DBSストリームにはseekが必要です。データはメモリ上に読み込みます。書き込みは未対応です。
 
+### DBの選択と参照レコードの順次読み込み
+
+```python
+from contextlib import closing
+from msdialio import read_dbs, iter_dbs_references
+
+databases = read_dbs("Dataset_Loaded.msp2.dbs", database_ids=["MspDB"])
+
+with closing(iter_dbs_references("Dataset_Loaded.msp2.dbs", database_id="MspDB")) as references:
+    for reference in references:
+        print(reference["Name"], reference["PrecursorMz"])
+```
+
+`database_ids` には1つのID文字列、またはIDのリストなどを指定できます。
+省略すると全DB、空のリストなら0件です。存在しないIDは `KeyError` になります。
+返却順は保存順です。異なる種類に同じIDがある場合、`read_dbs` は一致したDBをすべて返します。
+読み込むのは `Storage` と指定DBのエントリだけで、対象外のDBや注釈器の実データは開きません。
+Raw APIの `read_raw_dbs` は従来どおり全エントリを読み込みます。
+
+`iter_dbs_references` は1つの化合物DBを指定し、`read_dbs` と同じ参照辞書を1件ずつ返します。
+全レコードをリストに保持せず、圧縮ブロックごとに展開します。ただし、DB全体が1ブロックなら
+その全体の展開は必要なので、メモリ削減は限定的な場合があります。化合物単位の直接アクセスは行いません。
+途中で止めると後続ブロックは読み込まず、その部分の破損も検証しません。
+エラーは反復時に発生します。途中終了時は上記の `closing` などでリソースを解放してください。
+呼び出し側が渡したストリームは閉じません。Proteomics・EADはこのiteratorの対象外です。
+
+```bash
+python -m msdialio dbs Dataset_Loaded.msp2.dbs --database-id MspDB --json selected.json
+```
+
+`--database-id` は繰り返して複数指定できます。
+
 ```python
 from msdialio.raw import read_raw_mddata, read_raw_dbs
 

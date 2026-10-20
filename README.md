@@ -168,8 +168,47 @@ parameter types retain their serialized representation. Unknown numeric fields
 are retained with numeric keys; specialized parameters beyond the base contract
 are not assigned guessed names. Proteomics and EAD lipid database payloads are
 preserved in `Data` as bytes with `References=None`; their records are not decoded.
-DBS input streams must support seeking. Both readers load their results into memory.
+DBS input streams must support seeking. `read_dbs` collects selected databases in
+memory; `read_mddata` collects the dataset in memory.
 Writing these formats is not implemented.
+
+### Select databases and iterate references
+
+```python
+from contextlib import closing
+from msdialio import read_dbs, iter_dbs_references
+
+# Read one database or several; the default still reads all databases.
+databases = read_dbs("Dataset_Loaded.msp2.dbs", database_ids=["MspDB"])
+
+# Iterate one molecule database without accumulating all Python records.
+with closing(iter_dbs_references("Dataset_Loaded.msp2.dbs", database_id="MspDB")) as references:
+    for reference in references:
+        print(reference["Name"], reference["PrecursorMz"])
+```
+
+`database_ids` accepts a single string or an iterable. Empty selections return
+`[]`; unknown IDs raise `KeyError`. Output retains storage order. If an ID occurs
+in different database kinds, `read_dbs` returns all matching kinds. Only `Storage`
+and selected payload entries are read; unrelated databases and annotator payloads
+are not opened. The raw DBS reader continues to read every entry.
+
+`iter_dbs_references` requires one molecule database ID and yields the same
+reference dictionaries as `read_dbs`. Other database kinds are not decoded by
+this iterator. Errors occur when advancing the iterator. Exhaust it or use
+`contextlib.closing` when stopping early to release its open archive resources;
+caller-owned source streams remain open.
+
+Iteration retains one decompressed LZ4 block and decodes records one at a time.
+It avoids accumulating the full reference list, but cannot seek directly to a
+compound. A database stored as a single large block still needs that entire
+block decompressed in memory, so iteration may offer only a modest memory saving.
+Stopping early skips subsequent blocks and does not validate the unread remainder.
+
+```bash
+python -m msdialio dbs Dataset_Loaded.msp2.dbs --database-id MspDB --json selected.json
+# Repeat --database-id to select several databases.
+```
 
 ```python
 from msdialio.raw import read_raw_mddata, read_raw_dbs

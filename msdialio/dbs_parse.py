@@ -1,9 +1,9 @@
 """Read MS-DIAL 5 database storage ZIP archives without extracting files."""
 
-import io
+from contextlib import contextmanager
 import zipfile
 
-from ._metadata import decode, large_list, named
+from ._metadata import decode, iter_large_list, named
 from ._sources import open_binary_source
 
 _GROUPS = {"MetabolomicsDataBases": "MetabolomicsDB",
@@ -11,19 +11,33 @@ _GROUPS = {"MetabolomicsDataBases": "MetabolomicsDB",
            "EadLipidomicsDatabases": "EadLipidomicsDB"}
 
 
-def _entries(source):
-    with open_binary_source(source) as stream, zipfile.ZipFile(stream) as archive:
-        entries = {}
-        for info in archive.infolist():
-            if info.is_dir():
-                continue
-            name = info.filename.replace("\\", "/")
-            if name in entries:
-                raise ValueError(f"Duplicate DBS entry: {name}")
-            entries[name] = archive.read(info)
+def _entry_index(archive):
+    entries = {}
+    for info in archive.infolist():
+        if info.is_dir():
+            continue
+        name = info.filename.replace("\\", "/")
+        if name in entries:
+            raise ValueError(f"Duplicate DBS entry: {name}")
+        entries[name] = info
+    return entries
+
+
+def _storage(archive, entries):
     if "Storage" not in entries:
         raise ValueError("DBS archive has no Storage entry")
-    return entries
+    storage = decode(archive.read(entries["Storage"]))
+    if not isinstance(storage, dict):
+        raise ValueError("Expected a DBS Storage map")
+    return storage
+
+
+def _entries(source):
+    with open_binary_source(source) as stream, zipfile.ZipFile(stream) as archive:
+        entries = _entry_index(archive)
+        if "Storage" not in entries:
+            raise ValueError("DBS archive has no Storage entry")
+        return {name: archive.read(info) for name, info in entries.items()}
 
 
 def read_raw_dbs(source) -> dict:
@@ -36,19 +50,12 @@ def read_raw_dbs(source) -> dict:
     return {"Storage": decode(entries["Storage"]), "Entries": entries}
 
 
-def read_dbs(source) -> list[dict]:
-    """Return database metadata, annotator pairs and molecule references.
-
-    References retain C# field names; Spectrum contains stored peak arrays with
-    mass and intensity at positions 0 and 1. Proteomics and EAD payloads are
-    returned as Data bytes with References=None, without interpreting them.
-    Both current flat and legacy nested ZIP layouts are supported.
-    """
-    raw = read_raw_dbs(source)
-    storage, entries = raw["Storage"], raw["Entries"]
-    if not isinstance(storage, dict):
-        raise ValueError("Expected a DBS Storage map")
-    records = []
+def _databases(storage, database_ids):
+    if isinstance(database_ids, str):
+        database_ids = {database_ids}
+    elif database_ids is not None:
+        database_ids = set(database_ids)
+    databases = []
     for group, prefix in _GROUPS.items():
         for item in storage.get(group) or []:
             metadata = item["DataBase"]
@@ -61,20 +68,78 @@ def read_dbs(source) -> list[dict]:
                 dbid = None
             if not isinstance(dbid, str):
                 raise ValueError("Invalid DBS database metadata")
-            path = f"{prefix}/{dbid}"
-            if path + "/DataBase" in entries:
-                payload = entries[path + "/DataBase"]
-            elif path in entries:
-                with zipfile.ZipFile(io.BytesIO(entries[path])) as nested:
-                    payload = nested.read("DataBase")
-            else:
+            if database_ids is None or dbid in database_ids:
+                databases.append({
+                    "DataBaseID": dbid, "Kind": prefix,
+                    "DataBase": named(metadata, "MoleculeDataBase") if prefix == "MetabolomicsDB" else metadata,
+                    "Pairs": item.get("Pairs", []), "References": None,
+                })
+    if database_ids is not None:
+        missing = database_ids - {db["DataBaseID"] for db in databases}
+        if missing:
+            raise KeyError(f"Unknown DBS database IDs: {sorted(missing)}")
+    return databases
+
+
+@contextmanager
+def _database_stream(archive, entries, database):
+    path = f"{database['Kind']}/{database['DataBaseID']}"
+    if path + "/DataBase" in entries:
+        with archive.open(entries[path + "/DataBase"]) as stream:
+            yield stream
+    elif path in entries:
+        with archive.open(entries[path]) as stream, zipfile.ZipFile(stream) as nested:
+            nested_entries = _entry_index(nested)
+            if "DataBase" not in nested_entries:
                 raise ValueError(f"Missing DBS database payload: {path}/DataBase")
-            record = {"DataBaseID": dbid, "Kind": prefix,
-                      "DataBase": named(metadata, "MoleculeDataBase") if group == "MetabolomicsDataBases" else metadata,
-                      "Pairs": item.get("Pairs", []), "References": None}
-            if group == "MetabolomicsDataBases":
-                record["References"] = [named(row, "MoleculeMsReference") for row in large_list(payload)]
-            else:
-                record["Data"] = payload
-            records.append(record)
-    return records
+            with nested.open(nested_entries["DataBase"]) as payload:
+                yield payload
+    else:
+        raise ValueError(f"Missing DBS database payload: {path}/DataBase")
+
+
+def read_dbs(source, *, database_ids=None) -> list[dict]:
+    """Return selected databases, or all databases when database_ids is None.
+
+    database_ids accepts one ID string or an iterable of IDs. Unknown IDs raise
+    KeyError; an empty iterable selects nothing. Matching IDs in multiple kinds
+    are all returned, in storage order. Only selected database entries are read.
+    References retain C# names and stored Spectrum peak arrays. Proteomics/EAD
+    payloads are Data bytes with References=None. Streams must be seekable and
+    remain open when caller-owned. Flat and legacy nested ZIPs are supported.
+    """
+    with open_binary_source(source) as stream, zipfile.ZipFile(stream) as archive:
+        entries = _entry_index(archive)
+        databases = _databases(_storage(archive, entries), database_ids)
+        for database in databases:
+            with _database_stream(archive, entries, database) as payload:
+                if database["Kind"] == "MetabolomicsDB":
+                    database["References"] = [named(row, "MoleculeMsReference")
+                                              for row in iter_large_list(payload)]
+                else:
+                    database["Data"] = payload.read()
+        return databases
+
+
+def iter_dbs_references(source, *, database_id):
+    """Yield references from one molecule database without collecting all rows.
+
+    Only Storage and the selected database payload are read. LZ4 decompression
+    still needs a complete block; a large single block can use substantial RAM.
+    Rows have the same schema as read_dbs()[i]["References"][j]. IDs and ordering
+    are unchanged. Missing IDs raise KeyError; non-molecule-only IDs raise
+    ValueError. Errors are raised during iteration, and the unread remainder is
+    not validated on early termination. Exhaust or close the generator to release
+    resources; caller-owned source streams remain open.
+    """
+    if not isinstance(database_id, str):
+        raise TypeError("database_id must be a string")
+    with open_binary_source(source) as stream, zipfile.ZipFile(stream) as archive:
+        entries = _entry_index(archive)
+        databases = _databases(_storage(archive, entries), [database_id])
+        molecules = [db for db in databases if db["Kind"] == "MetabolomicsDB"]
+        if len(molecules) != 1:
+            raise ValueError("Expected one molecule database for database_id")
+        with _database_stream(archive, entries, molecules[0]) as payload:
+            for row in iter_large_list(payload):
+                yield named(row, "MoleculeMsReference")

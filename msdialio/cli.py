@@ -26,13 +26,17 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Read an MS-DIAL output file")
     parser.add_argument("format", choices=sorted(_READERS))
     parser.add_argument("path", type=Path)
+    parser.add_argument("--database-id", dest="database_ids", action="append",
+                        help="read only this DBS database ID (repeatable; DBS only)")
     output = parser.add_mutually_exclusive_group()
     output.add_argument("--json", metavar="PATH", help="write parsed records as JSON")
     output.add_argument("--csv", metavar="PATH", help="write top-level record fields as CSV")
     args = parser.parse_args(argv)
+    if args.database_ids is not None and args.format != "dbs":
+        parser.error("--database-id is only supported for dbs")
 
     read = _READERS[args.format]
-    records = read(args.path)
+    records = read(args.path, database_ids=args.database_ids) if args.format == "dbs" else read(args.path)
     print(f"{args.path}: {1 if isinstance(records, dict) else len(records)} records")
 
     if args.json:

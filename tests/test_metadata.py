@@ -10,7 +10,7 @@ import lz4.block
 import msgpack
 import pytest
 
-from msdialio import read_dbs, read_mddata
+from msdialio import read_dbs, read_mddata, iter_dbs_references
 from msdialio.cli import main
 from msdialio.raw import read_raw_dbs, read_raw_mddata
 
@@ -168,3 +168,72 @@ def test_cli_paths_json_and_csv(tmp_path, capsys):
     dbs.write_bytes(dbs_bytes([[0, 100.5, None, 0, [], "compound"]]))
     assert main(["dbs", str(dbs), "--json", str(output)]) == 0
     assert json.loads(output.read_text(encoding="utf-8"))[0]["References"][0]["Name"] == "compound"
+
+
+@pytest.mark.parametrize("legacy", [False, True])
+@pytest.mark.parametrize("windows", [False, True])
+def test_database_selection_reads_only_selected_payload(monkeypatch, legacy, windows):
+    data = dbs_bytes([[0, 100.0, None, 0, [], "selected"]], legacy=legacy, windows=windows)
+    raw = read_raw_dbs(BytesIO(data))
+    storage = raw["Storage"]
+    storage["MetabolomicsDataBases"].append({"DataBase": ["other"], "Pairs": []})
+    entries = raw["Entries"]
+    entries["Storage"] = packed(storage)
+    # An invalid unselected DB and an unrelated entry must never be opened.
+    entries["MetabolomicsDB/other/DataBase"] = b"corrupt"
+    calls = []
+    original = zipfile.ZipFile.open
+
+    def track(self, name, *args, **kwargs):
+        calls.append(name.filename if isinstance(name, zipfile.ZipInfo) else name)
+        return original(self, name, *args, **kwargs)
+
+    data = archive(entries)
+    monkeypatch.setattr(zipfile.ZipFile, "open", track)
+    result = read_dbs(BytesIO(data), database_ids=["lib"])
+    assert result[0]["References"][0]["Name"] == "selected"
+    assert len(result) == 1
+    assert not any("other" in name or "future" in name for name in calls)
+    calls.clear()
+    refs = list(iter_dbs_references(BytesIO(data), database_id="lib"))
+    assert refs == result[0]["References"]
+    assert not any("other" in name or "future" in name for name in calls)
+    assert read_dbs(BytesIO(data), database_ids="lib") == result
+    assert read_dbs(BytesIO(data), database_ids=[]) == []
+    with pytest.raises(KeyError, match="missing"):
+        read_dbs(BytesIO(data), database_ids=["lib", "missing"])
+
+
+def test_iterator_is_lazy_across_blocks_and_leaves_borrowed_stream_open():
+    raw = read_raw_dbs(BytesIO(dbs_bytes([[0], [1]])))
+    entries = raw["Entries"]
+    entries["MetabolomicsDB/lib/DataBase"] = large_block([[42]]) + b"\xc7"
+    stream = BytesIO(archive(entries))
+    iterator = iter_dbs_references(stream, database_id="lib")
+    assert stream.tell() == 0
+    assert next(iterator)["ScanID"] == 42
+    iterator.close()
+    assert not stream.closed
+    stream.seek(0)
+    with pytest.raises(ValueError, match="Incomplete"):
+        list(iter_dbs_references(stream, database_id="lib"))
+    assert not stream.closed
+
+
+def test_iterator_unknown_and_unsupported_database_ids():
+    data = dbs_bytes([[0]])
+    with pytest.raises(KeyError):
+        list(iter_dbs_references(BytesIO(data), database_id="missing"))
+    storage = {"EadLipidomicsDatabases": [{"DataBase": {"Id": "ead"}, "Pairs": []}]}
+    with pytest.raises(ValueError, match="molecule"):
+        list(iter_dbs_references(BytesIO(archive({"Storage": packed(storage)})), database_id="ead"))
+
+
+def test_cli_database_selection(tmp_path):
+    dbs = tmp_path / "sample.dbs"
+    dbs.write_bytes(dbs_bytes([[0]]))
+    output = tmp_path / "selected.json"
+    assert main(["dbs", str(dbs), "--database-id", "lib", "--json", str(output)]) == 0
+    assert json.loads(output.read_text(encoding="utf-8"))[0]["DataBaseID"] == "lib"
+    with pytest.raises(SystemExit):
+        main(["mddata", str(dbs), "--database-id", "lib"])
