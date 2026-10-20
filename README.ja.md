@@ -2,7 +2,7 @@
 
 [English](README.md) | 日本語
 
-MS-DIALの `.arf`・`.arf2`・`.pai2`・`.dcl`・`.EIC.aef` を読むPythonパッケージです。
+MS-DIALの `.arf`・`.arf2`・`.pai2`・`.dcl`・`.EIC.aef`・`.mddata`・`.dbs` を読むPythonパッケージです。
 現在は読み込みに対応し、MS-DIAL形式への書き込みは未実装です。
 
 ## インストール
@@ -74,3 +74,52 @@ python -m pytest
 
 CLIはJSON・CSVに出力できます。入れ子のCSVセルはJSONで表現します。
 詳細な契約と制限は英語READMEも参照してください。ライセンスはMITです。
+
+## MS-DIAL 5 のデータセット・参照DB
+
+```python
+from msdialio import read_mddata, read_dbs
+
+dataset = read_mddata("Dataset.mddata")
+files = dataset["AnalysisFiles"]
+project = dataset["Parameter"]["ProjectParam"]
+databases = read_dbs("Dataset_Loaded.msp2.dbs")
+references = databases[0]["References"]
+```
+
+`read_mddata` は1つの辞書を返し、解析ファイル一覧、アライメントファイル一覧、
+基本解析設定、埋め込み参照情報を取得できます。保存されたパスの書き換えや、関連ファイルの
+自動読み込みは行いません。参照DBが別ファイルに保存され、埋め込みの `MspDB` が空の場合もあります。
+
+`read_dbs` はDBごとの辞書のリストを返します。`DataBaseID`・`Kind`・`DataBase`・
+`Pairs`・`References` を含みます。化合物の `References` には `ScanID`・`Name`・
+`PrecursorMz`・`Formula`・`SMILES`・`InChIKey`・`Spectrum` などを格納します。
+`Spectrum` は保存時の配列で、各ピークの先頭2要素がm/zと強度です。
+`ScanID` はDB内の識別子なので、注釈との結合時には `DataBaseID` も保持してください。
+
+対象は **MS-DIAL 5** です。既知のファイル情報と基本設定にはC#のフィールド名を付けます。
+列挙型は整数、`Formula`・`AdductType`・`ChromXs`・注釈器情報などの入れ子は保存時の形式を
+保持します。未知の項目は数値キーのまま残し、測定方式固有の設定には名前を推測して付けません。
+Proteomics・EAD lipid DBはレコードを解釈せず、`Data` にバイト列を保存し
+`References=None` とします。現在のZIP構造と旧来の入れ子ZIP、Windowsの区切り文字に対応します。
+DBSストリームにはseekが必要です。データはメモリ上に読み込みます。書き込みは未対応です。
+
+```python
+from msdialio.raw import read_raw_mddata, read_raw_dbs
+
+storage = read_raw_mddata("Dataset.mddata")
+archive = read_raw_dbs("Dataset_Loaded.msp2.dbs")
+# archive["Storage"]: デコード済みメタデータ
+# archive["Entries"]: ZIPエントリ名 -> 元のバイト列（未知のエントリも保持）
+```
+
+Raw APIでは未知の項目も保持します。ZIP内のパス区切りは `/` に統一します。
+
+```bash
+python -m msdialio mddata Dataset.mddata --json dataset.json
+python -m msdialio dbs Dataset_Loaded.msp2.dbs --json databases.json
+```
+
+mddataのCSV出力は1行で、入れ子の項目はJSONです。CLIのJSON出力ではバイト列や拡張型は
+文字列になります。正確な保持が必要な場合はPythonのRaw APIを使用してください。
+フォーマットの根拠となるMS-DIAL本体のソースへのリンクは英語READMEに記載しています。

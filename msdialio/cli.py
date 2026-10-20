@@ -8,7 +8,7 @@ import json
 import sys
 from pathlib import Path
 
-from . import aef_parse, arf2_parse, arf_parse, dcl_parse, pai2_parse
+from . import aef_parse, arf2_parse, arf_parse, dcl_parse, pai2_parse, mddata_parse, dbs_parse
 
 
 _READERS = {
@@ -17,6 +17,8 @@ _READERS = {
     "arf2": arf2_parse.read_arf2,
     "dcl": dcl_parse.read_dcl,
     "pai2": pai2_parse.read_pai2,
+    "mddata": mddata_parse.read_mddata,
+    "dbs": dbs_parse.read_dbs,
 }
 
 
@@ -31,14 +33,14 @@ def main(argv: list[str] | None = None) -> int:
 
     read = _READERS[args.format]
     records = read(args.path)
-    print(f"{args.path}: {len(records)} records")
+    print(f"{args.path}: {1 if isinstance(records, dict) else len(records)} records")
 
     if args.json:
         with open(args.json, "w", encoding="utf-8") as stream:
             json.dump(records, stream, ensure_ascii=False, indent=2, default=str)
             stream.write("\n")
     elif args.csv:
-        _write_csv(args.csv, records)
+        _write_csv(args.csv, [records] if isinstance(records, dict) else records)
     return 0
 
 
