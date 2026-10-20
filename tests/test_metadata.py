@@ -10,7 +10,7 @@ import lz4.block
 import msgpack
 import pytest
 
-from msdialio import read_dbs, read_mddata, iter_dbs_references
+from msdialio import read_dbs, read_mddata, iter_dbs_references, list_dbs
 from msdialio.cli import main
 from msdialio.raw import read_raw_dbs, read_raw_mddata
 
@@ -237,3 +237,52 @@ def test_cli_database_selection(tmp_path):
     assert json.loads(output.read_text(encoding="utf-8"))[0]["DataBaseID"] == "lib"
     with pytest.raises(SystemExit):
         main(["mddata", str(dbs), "--database-id", "lib"])
+
+
+@pytest.mark.parametrize("legacy", [False, True])
+@pytest.mark.parametrize("windows", [False, True])
+def test_list_dbs_reads_only_storage_and_matches_reader_metadata(monkeypatch, legacy, windows):
+    data = dbs_bytes([[0, 100.0, None, 0, [], "compound"]], legacy=legacy, windows=windows)
+    full = read_dbs(BytesIO(data))
+    expected = [{key: value for key, value in db.items() if key not in ("References", "Data")}
+                for db in full]
+    calls = []
+    original = zipfile.ZipFile.open
+
+    def track(self, name, *args, **kwargs):
+        calls.append(name.filename if isinstance(name, zipfile.ZipInfo) else name)
+        return original(self, name, *args, **kwargs)
+
+    monkeypatch.setattr(zipfile.ZipFile, "open", track)
+    stream = BytesIO(data)
+    assert list_dbs(stream) == expected
+    assert calls == ["Storage"]
+    assert not stream.closed
+
+
+def test_list_dbs_reports_all_kinds_without_requiring_payloads(tmp_path):
+    storage = {
+        "MetabolomicsDataBases": [
+            {"DataBase": ["public", 4, 1, "public.msp"], "Pairs": [[0, {"Priority": 1}]]},
+            {"DataBase": ["inhouse", 4, 1, "inhouse.msp"], "Pairs": []},
+        ],
+        "ProteomicsDataBases": [{"DataBase": [None, "test.fasta", "protein", 4], "Pairs": []}],
+        "EadLipidomicsDatabases": [{"DataBase": {"Id": "ead", "DatabaseFormat": 2}, "Pairs": []}],
+    }
+    path = tmp_path / "catalog.dbs"
+    path.write_bytes(archive({"Storage": packed(storage), "MetabolomicsDB/public/DataBase": b"corrupt"}))
+    catalog = list_dbs(path)
+    assert [db["DataBaseID"] for db in catalog] == ["public", "inhouse", "protein", "ead"]
+    assert [db["Kind"] for db in catalog] == ["MetabolomicsDB", "MetabolomicsDB", "ProteomicsDB", "EadLipidomicsDB"]
+    assert catalog[0]["DataBase"]["DataBaseSourceFilePath"] == "public.msp"
+    assert catalog[0]["Pairs"] == [[0, {"Priority": 1}]]
+    assert all(set(db) == {"DataBaseID", "Kind", "DataBase", "Pairs"} for db in catalog)
+
+
+def test_list_dbs_empty_and_invalid_storage_leave_stream_open():
+    assert list_dbs(BytesIO(archive({"Storage": packed({})}))) == []
+    for entries in ({"other": b""}, {"Storage": packed([])}):
+        stream = BytesIO(archive(entries))
+        with pytest.raises(ValueError, match="Storage"):
+            list_dbs(stream)
+        assert not stream.closed

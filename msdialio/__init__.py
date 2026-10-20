@@ -6,7 +6,7 @@ from .arf_parse import read_arf
 from .dcl_parse import read_dcl
 from .pai2_parse import read_pai2
 from .mddata_parse import read_mddata
-from .dbs_parse import read_dbs, iter_dbs_references
+from .dbs_parse import read_dbs, iter_dbs_references, list_dbs
 
 __all__ = [
     "read_aef",
@@ -17,6 +17,7 @@ __all__ = [
     "read_mddata",
     "read_dbs",
     "iter_dbs_references",
+    "list_dbs",
 ]
 
 __version__ = "0.1.0"

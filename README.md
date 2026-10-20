@@ -174,6 +174,26 @@ Writing these formats is not implemented.
 
 ### Select databases and iterate references
 
+Use `list_dbs` to discover IDs before selecting a database. It reads only the
+ZIP directory and `Storage`, without opening database or annotator payloads.
+Each result contains `DataBaseID`, `Kind`, `DataBase`, and `Pairs`, with the same
+metadata schema and order as `read_dbs`. `References`, `Data`, and compound counts
+are omitted. This is a metadata listing; missing or corrupt payloads are not
+validated until they are read. Inputs can be paths or seekable binary streams;
+caller-owned streams remain open.
+
+```python
+from msdialio import list_dbs, read_dbs
+
+path = "Dataset_Loaded.msp2.dbs"
+catalog = list_dbs(path)
+for database in catalog:
+    print(database["DataBaseID"], database["Kind"], database["DataBase"])
+
+if catalog:
+    selected = read_dbs(path, database_ids=[catalog[0]["DataBaseID"]])
+```
+
 ```python
 from contextlib import closing
 from msdialio import read_dbs, iter_dbs_references

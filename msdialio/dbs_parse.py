@@ -72,13 +72,27 @@ def _databases(storage, database_ids):
                 databases.append({
                     "DataBaseID": dbid, "Kind": prefix,
                     "DataBase": named(metadata, "MoleculeDataBase") if prefix == "MetabolomicsDB" else metadata,
-                    "Pairs": item.get("Pairs", []), "References": None,
+                    "Pairs": item.get("Pairs", []),
                 })
     if database_ids is not None:
         missing = database_ids - {db["DataBaseID"] for db in databases}
         if missing:
             raise KeyError(f"Unknown DBS database IDs: {sorted(missing)}")
     return databases
+
+
+def list_dbs(source) -> list[dict]:
+    """List database metadata without opening any database payloads.
+
+    Returns DataBaseID, Kind, DataBase and Pairs using read_dbs's metadata
+    schema and ordering. References, Data and compound counts are not included.
+    Only the ZIP directory and Storage entry are read. Payload presence and
+    integrity are not checked. The source must be seekable; caller-owned
+    streams remain open.
+    """
+    with open_binary_source(source) as stream, zipfile.ZipFile(stream) as archive:
+        entries = _entry_index(archive)
+        return _databases(_storage(archive, entries), None)
 
 
 @contextmanager
@@ -112,6 +126,7 @@ def read_dbs(source, *, database_ids=None) -> list[dict]:
         entries = _entry_index(archive)
         databases = _databases(_storage(archive, entries), database_ids)
         for database in databases:
+            database["References"] = None
             with _database_stream(archive, entries, database) as payload:
                 if database["Kind"] == "MetabolomicsDB":
                     database["References"] = [named(row, "MoleculeMsReference")

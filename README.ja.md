@@ -106,6 +106,26 @@ DBSストリームにはseekが必要です。データはメモリ上に読み�
 
 ### DBの選択と参照レコードの順次読み込み
 
+`list_dbs` でDB一覧を確認してから、IDを指定して読み込めます。
+ZIPのエントリ一覧と `Storage` だけを読み、DB本体や注釈器の実データは開きません。
+返り値は `DataBaseID`・`Kind`・`DataBase`・`Pairs` を含む辞書のリストで、
+メタデータの形式と並び順は `read_dbs` と同じです。
+`References`・`Data`・化合物数は含めません。
+DB本体の欠落や破損は一覧取得時には検証せず、本体を読み込む際に検出します。
+パスまたはseek可能なバイナリストリームを受け取り、渡されたストリームは閉じません。
+
+```python
+from msdialio import list_dbs, read_dbs
+
+path = "Dataset_Loaded.msp2.dbs"
+catalog = list_dbs(path)
+for database in catalog:
+    print(database["DataBaseID"], database["Kind"], database["DataBase"])
+
+if catalog:
+    selected = read_dbs(path, database_ids=[catalog[0]["DataBaseID"]])
+```
+
 ```python
 from contextlib import closing
 from msdialio import read_dbs, iter_dbs_references
