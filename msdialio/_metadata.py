@@ -6,6 +6,7 @@ import lz4.block
 import msgpack
 
 from ._metadata_schema import SCHEMAS
+from ._messagepack_objects import _one_object
 
 
 def unpack(data):
@@ -29,10 +30,11 @@ def decompress(extension):
     return result
 
 
-def decode(data):
+def decode(data, *, preserve_float_width=False):
     """Decode the v1 LZ4 extension or an uncompressed MessagePack object."""
-    value = unpack(data)
-    return unpack(decompress(value)) if isinstance(value, msgpack.ExtType) else value
+    unpack_value = _one_object if preserve_float_width else unpack
+    value = unpack_value(data)
+    return unpack_value(decompress(value)) if isinstance(value, msgpack.ExtType) else value
 
 
 def large_list(data):

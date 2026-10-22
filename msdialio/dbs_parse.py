@@ -47,7 +47,7 @@ def read_raw_dbs(source) -> dict:
     The source must be seekable; a caller-owned stream is left open.
     """
     entries = _entries(source)
-    return {"Storage": decode(entries["Storage"]), "Entries": entries}
+    return {"Storage": decode(entries["Storage"], preserve_float_width=True), "Entries": entries}
 
 
 def _databases(storage, database_ids):

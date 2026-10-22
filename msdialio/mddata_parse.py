@@ -10,7 +10,7 @@ _FIELDS = ("AnalysisFiles", "AlignmentFiles", "MspDB", "TextDB", "IsotopeTextDB"
 def read_raw_mddata(source):
     """Return the decoded storage object, preserving numeric keys and nesting."""
     with open_binary_source(source) as stream:
-        return decode(stream.read())
+        return decode(stream.read(), preserve_float_width=True)
 
 
 def read_mddata(source) -> dict:

@@ -12,3 +12,5 @@ dist/
 htmlcov/
 .DS_Store
 Thumbs.db
+/tests/data/local-project/
+/output_check_20261022/

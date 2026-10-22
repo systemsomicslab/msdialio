@@ -1,9 +1,48 @@
 # msdialio
 
+## Rawデータの書き込み
+
+`msdialio.raw` に `write_raw_arf`・`write_raw_arf2`・`write_raw_pai2`・
+`write_raw_mddata`・`write_raw_dbs` を用意しています。
+対応する `read_raw_*` の戻り値を渡してください。通常の `read_*` の戻り値は対象外です。
+
+```python
+from msdialio.raw import read_raw_pai2, write_raw_pai2
+
+peaks = read_raw_pai2("sample.pai2")
+# 必要な保存フィールドを編集
+write_raw_pai2("sample_modified.pai2", peaks)
+```
+
+引数は `(出力先, rawデータ, *, overwrite=False)` です。パスとバイナリストリームに対応し、
+呼び出し側のストリームは閉じません。パスは一時ファイル経由で保存し、既存ファイルへの
+上書きには `overwrite=True` が必要です。ストリームは現在位置から書き込み、切り詰めず、
+失敗時には途中まで書き込まれる場合があります。MessagePackの出力はメモリ上に保持します。
+
+未知フィールド・数値キー・バイナリ・拡張型を保持します。float32は `float` のサブクラス
+`msdialio.raw.Float32` として読み込み、float64と区別して保存します。float32の値を変更するときは
+`Float32(新しい値)` を使ってください。演算や通常の `float` への変換では保存幅の情報が失われ、
+通常の `float` はfloat64で保存されます。MS-DIALのfloat32読み込みはfloat64を受け付けません。
+圧縮結果や整数の保存幅などのバイト単位の一致は保証しません。
+C#のスキーマ、ファイル間のIDやパスの整合性は検証しません。
+ARFは既存のブロック・オブジェクト構造・余白を保った値の編集を対象とし、行の追加・削除に
+必要なLargeList構造の再構築は行いません。非標準の配列ヘッダ幅は保持しません。
+
+DBSは `Storage` を正として `Entries["Storage"]` を再生成します。それ以外のエントリは
+未知データも含めて元のバイト列を保存します。ZIPの日時などは保持しません。
+Raw API内のエントリ名は `/` 区切りですが、書き込み時はMS-DIALの検索に合わせて
+ZIP内部のエントリ名をWindows形式のバックスラッシュ区切りにします。
+展開済みの参照レコードからDB本体を再構築する機能は含みません。
+
+実ファイルの往復とバイナリ構造に加え、サンプルの編集結果をMS-DIALのGUIでも確認しています。
+全バージョン・全データセットの互換性を保証するものではありません。
+[C#互換性確認ツール](tools/msdial-interop/README.md)で実際の読み込み処理とLCMSデータセットの
+初期化も確認できます。DCL・AEFの書き込みは対象外です。
+
 [English](README.md) | 日本語
 
 MS-DIALの `.arf`・`.arf2`・`.pai2`・`.dcl`・`.EIC.aef`・`.mddata`・`.dbs` を読むPythonパッケージです。
-現在は読み込みに対応し、MS-DIAL形式への書き込みは未実装です。
+読み込みに加え、Raw APIからARF・ARF2・PAI2・MDDATA・DBSの書き込みに対応します。
 
 ## インストール
 
@@ -102,7 +141,7 @@ references = databases[0]["References"]
 保持します。未知の項目は数値キーのまま残し、測定方式固有の設定には名前を推測して付けません。
 Proteomics・EAD lipid DBはレコードを解釈せず、`Data` にバイト列を保存し
 `References=None` とします。現在のZIP構造と旧来の入れ子ZIP、Windowsの区切り文字に対応します。
-DBSストリームにはseekが必要です。データはメモリ上に読み込みます。書き込みは未対応です。
+DBSストリームにはseekが必要です。データはメモリ上に読み込みます。書き込みにはRaw APIを使用します。
 
 ### DBの選択と参照レコードの順次読み込み
 

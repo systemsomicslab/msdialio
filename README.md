@@ -69,7 +69,8 @@ MIT
 ## Reader contract
 
 This is an alpha package; the import and distribution name is `msdialio`.
-Writing MS-DIAL files is not implemented yet. The CLI can export JSON and CSV.
+Raw writers support ARF, ARF2, PAI2, MDDATA and DBS (see below).
+The CLI can export JSON and CSV.
 
 All readers accept a path or a binary stream. Caller-owned streams remain open.
 AEF and DCL streams must support seeking. Results are lists of dictionaries, except `read_mddata`, which returns one dictionary.
@@ -170,7 +171,7 @@ are not assigned guessed names. Proteomics and EAD lipid database payloads are
 preserved in `Data` as bytes with `References=None`; their records are not decoded.
 DBS input streams must support seeking. `read_dbs` collects selected databases in
 memory; `read_mddata` collects the dataset in memory.
-Writing these formats is not implemented.
+Raw writers for these formats are available from `msdialio.raw`.
 
 ### Select databases and iterate references
 
@@ -257,3 +258,54 @@ Wire contracts were checked against the MS-DIAL source:
 [DataBaseStorage](https://github.com/systemsomicslab/MsdialWorkbench/blob/master/src/MSDIAL5/MsdialCore/DataObj/DataBaseStorage.cs),
 [DataBaseItem](https://github.com/systemsomicslab/MsdialWorkbench/blob/master/src/MSDIAL5/MsdialCore/DataObj/DataBaseItem.cs), and
 [LargeListMessagePack](https://github.com/systemsomicslab/MsdialWorkbench/blob/master/src/Common/CommonStandard/MessagePack/LargeListMessagePack.cs).
+
+## Raw writers
+
+`msdialio.raw` exports `write_raw_arf`, `write_raw_arf2`, `write_raw_pai2`,
+`write_raw_mddata`, and `write_raw_dbs`. Pass the corresponding raw reader's
+result, not the interpreted `read_*` dictionaries (even with `slim=False`).
+
+```python
+from msdialio.raw import read_raw_pai2, write_raw_pai2
+
+peaks = read_raw_pai2("sample.pai2")
+# Edit serialized field values as needed.
+write_raw_pai2("sample_modified.pai2", peaks)
+```
+
+Every writer accepts `(destination, value, *, overwrite=False)` and returns
+`None`. Destinations can be paths or binary streams. Path writes use a temporary
+file in the destination directory and publish only after success; existing paths
+require `overwrite=True`. On POSIX, no-clobber publication requires hard-link
+support on the destination filesystem. Caller-owned streams remain open, write at their
+current position, are not truncated, and may contain partial output on failure.
+The `overwrite` option applies only to paths. Encoding currently holds the output
+in memory for MessagePack formats.
+
+Unknown fields, numeric keys, binary/extension values, sentinel values and
+surrogate-escaped strings are retained. Raw readers preserve float32 values as
+`msdialio.raw.Float32` (a `float` subclass); float64 remains a normal Python float.
+Writers retain these widths because MS-DIAL's C# float32 reader rejects float64.
+When replacing a float32 field, use `Float32(new_value)`; arithmetic or converting
+to ordinary floats discards the width marker. New ordinary floats encode as
+float64. Compression and MessagePack integer widths may change; byte-identical
+output is not promised. These are low-level
+writers: they do not validate C# object schemas, cross-file IDs, or stored paths.
+Keep existing ARF block/object nesting and padding objects intact; inserting or
+removing rows requires rebuilding its LargeList layout and is not provided here.
+Noncanonical array-header widths from other producers are not retained.
+
+For DBS, `value["Storage"]` is authoritative: `Entries["Storage"]` is regenerated.
+All other entry bytes, including unknown entries, annotators and nested legacy
+archives, are copied unchanged. Raw API entry separators are normalized to `/`;
+writers emit Windows backslashes in ZIP entry names for MS-DIAL's lookup.
+Collisions are rejected. ZIP timestamps and compression metadata are not preserved. Editing
+decoded database reference records is not part of this API.
+
+Tests cover real ARF/ARF2/PAI2 fixture round trips, synthetic and optional local
+MDDATA/DBS round trips, float32/float64 preservation, ZIP entry names, and LZ4/ARF
+wire layouts. Edited sample files were also checked in the MS-DIAL GUI; this is
+sample-based verification, not a guarantee for every version or dataset. The
+optional [C# interoperability probe](tools/msdial-interop/README.md) checks the
+actual deserializers and LCMS dataset initialization. DCL/AEF writers remain
+unsupported.
