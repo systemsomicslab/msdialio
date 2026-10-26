@@ -1,5 +1,29 @@
 # msdialio
 
+## Imagingの強度マップ（`.mdi_pixel`）
+
+```python
+from msdialio import list_mdi_pixel, read_mdi_pixel
+
+catalog = list_mdi_pixel("sample.mdi_pixel")  # 強度を読まずに一覧取得
+images = read_mdi_pixel("sample.mdi_pixel", image_indices=[12, 45])
+intensities = images[0]["intensities"]  # 保存順の array('d')
+```
+
+一覧には `image_index`（ファイル内の0始まりの順番）、`mz`、`drift`、
+`pixel_count` が入り、読み込み結果には `intensities` が加わります。
+画像の指定は必須です。指定順に返し、重複指定は最初の1件にまとめます。
+指定外の画像の強度は読み飛ばします。NumPyは不要で、メモリ使用量は選択した
+強度の合計（1ピクセルあたり約8バイト）と小さな一時バッファに比例します。
+メモリを抑える場合は1画像ずつ呼び出してください。
+
+XY座標・画像の縦横は含まれません。画像化には、強度と同じ順番の座標を
+利用者側で用意してください。MS-DIALの読み込み処理に合わせ、全画像の
+ピクセル数が共通の形式を対象にします。パスとseek可能なバイナリストリームに
+対応し、渡されたストリームは現在位置から読み、閉じません。
+範囲外の指定や不正なファイル構造は `ValueError`、整数以外の指定は
+`TypeError` になります。形式識別子がないため、構造の検証のみを行います。
+
 ## Rawデータの書き込み
 
 `msdialio.raw` に `write_raw_arf`・`write_raw_arf2`・`write_raw_pai2`・

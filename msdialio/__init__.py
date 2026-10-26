@@ -7,6 +7,7 @@ from .dcl_parse import read_dcl
 from .pai2_parse import read_pai2
 from .mddata_parse import read_mddata
 from .dbs_parse import read_dbs, iter_dbs_references, list_dbs
+from .mdi_pixel_parse import list_mdi_pixel, read_mdi_pixel
 
 __all__ = [
     "read_aef",
@@ -18,6 +19,8 @@ __all__ = [
     "read_dbs",
     "iter_dbs_references",
     "list_dbs",
+    "list_mdi_pixel",
+    "read_mdi_pixel",
 ]
 
 __version__ = "0.1.0"

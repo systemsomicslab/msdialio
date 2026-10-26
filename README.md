@@ -38,6 +38,33 @@ uv pip install "msdialio @ git+https://github.com/OWNER/REPO.git"
 
 ## Python API
 
+### Imaging intensity maps (`.mdi_pixel`)
+
+```python
+from msdialio import list_mdi_pixel, read_mdi_pixel
+
+catalog = list_mdi_pixel("sample.mdi_pixel")  # metadata only; skips intensities
+images = read_mdi_pixel("sample.mdi_pixel", image_indices=[12, 45])
+intensities = images[0]["intensities"]  # array('d'), saved pixel order
+```
+
+The catalog contains `image_index` (zero-based file order), `mz`, `drift`, and
+`pixel_count`. Selected images also contain `intensities`. Selection is required;
+results follow requested order with duplicates removed. Only selected intensity
+arrays are read, with bounded temporary buffers and no NumPy dependency.
+Memory scales with the total number of selected pixels (approximately 8 bytes
+per intensity); read one image per call when memory is limited.
+
+Coordinates and dimensions are not stored in this format. Supply coordinates
+separately in the same order as the intensities to reconstruct a spatial image.
+All images must have the same pixel count, matching MS-DIAL's reader.
+Paths and seekable binary streams are accepted. Caller-owned streams remain open
+and are read from their current position. Invalid indices or malformed layouts
+raise `ValueError`; noninteger indices raise `TypeError`. The format has no magic
+or version marker, so structural validation cannot establish file identity.
+
+### Peak data
+
 ```python
 from msdialio import read_arf
 
