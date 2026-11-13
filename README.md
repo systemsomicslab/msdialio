@@ -22,18 +22,16 @@ uv sync
 
 ### Install directly from GitHub
 
-Replace `OWNER/REPO` with the GitHub repository location.
-
 Standard install with pip:
 
 ```bash
-python -m pip install "msdialio @ git+https://github.com/OWNER/REPO.git"
+python -m pip install "msdialio @ git+https://github.com/systemsomicslab/msdialio.git"
 ```
 
 With uv, install into an existing virtual environment:
 
 ```bash
-uv pip install "msdialio @ git+https://github.com/OWNER/REPO.git"
+uv pip install "msdialio @ git+https://github.com/systemsomicslab/msdialio.git"
 ```
 
 ## Python API

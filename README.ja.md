@@ -70,12 +70,28 @@ MS-DIALの `.arf`・`.arf2`・`.pai2`・`.dcl`・`.EIC.aef`・`.mddata`・`.dbs`
 
 ## インストール
 
+### リポジトリをクローンしてインストール
+
 リポジトリのルートで実行します。
 
 ```bash
 python -m pip install .
 # または
 uv sync
+```
+
+### GitHubから直接インストール
+
+pipを使用する場合：
+
+```bash
+python -m pip install "msdialio @ git+https://github.com/systemsomicslab/msdialio.git"
+```
+
+既存の仮想環境にuvでインストールする場合：
+
+```bash
+uv pip install "msdialio @ git+https://github.com/systemsomicslab/msdialio.git"
 ```
 
 ## 通常のAPI
