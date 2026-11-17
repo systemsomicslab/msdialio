@@ -26,6 +26,24 @@ class VerifyMsdial {
         for (int i = 1; i < args.Length; i += 2) {
             string kind = args[i], path = args[i + 1];
             try {
+                if (kind == "aef") {
+                    Type factory = core.GetType("CompMs.MsdialCore.Parser.ChromatogramSerializerFactory", true);
+                    MethodInfo create = factory.GetMethod("CreateSpotSerializer");
+                    Type axis = create.GetParameters()[1].ParameterType;
+                    object serializer = create.Invoke(null, new object[] {"CSS1", Enum.Parse(axis, "RT")});
+                    using (Stream stream = File.OpenRead(path)) {
+                        var all = (System.Collections.IEnumerable)serializer.GetType().GetMethod("DeserializeAll").Invoke(serializer, new object[] {stream});
+                        int count = 0;
+                        foreach (object spot in all) count++;
+                        if (count > 0) {
+                            stream.Position = 0;
+                            object last = serializer.GetType().GetMethod("DeserializeAt").Invoke(serializer, new object[] {stream, count - 1});
+                            if (last == null) throw new InvalidDataException("Could not read last AEF spot");
+                        }
+                        Console.WriteLine("PASS AEF " + path + " spots=" + count);
+                    }
+                    continue;
+                }
                 if (kind == "dcl") {
                     Type reader = core.GetType("CompMs.MsdialCore.Parser.MsdecResultsReader", true);
                     MethodInfo read = reader.GetMethod("ReadMSDecResults", new Type[] {

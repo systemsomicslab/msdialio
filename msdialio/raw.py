@@ -4,7 +4,7 @@ Arrays, maps, unknown fields and sentinel values are retained. MessagePack
 strings become str and binary values remain bytes. Invalid UTF-8 is preserved
 with surrogateescape. These functions accept paths or binary streams and leave
 caller-owned streams open. Raw readers are deliberately not re-exported at the
-package root. DCL uses its own binary representation; AEF has no raw API.
+package root. DCL and AEF use their own binary representations.
 Float32 values use a float subclass to retain their wire width for writers.
 """
 
@@ -14,6 +14,7 @@ from ._messagepack_objects import Float32, _objects, _one_object
 from .mddata_parse import read_raw_mddata
 from .dbs_parse import read_raw_dbs
 from ._dcl_raw import read_raw_dcl, write_raw_dcl
+from ._aef_raw import read_raw_aef, write_raw_aef
 from ._raw_write import (write_raw_arf, write_raw_arf2, write_raw_pai2,
                          write_raw_mddata, write_raw_dbs)
 from .arf_parse import _decompress_lz4_payload, _payload_from_top_level_object
@@ -22,6 +23,7 @@ __all__ = ["read_raw_arf", "read_raw_arf2", "read_raw_pai2", "read_raw_mddata", 
 __all__ += ["write_raw_arf", "write_raw_arf2", "write_raw_pai2", "write_raw_mddata", "write_raw_dbs"]
 __all__ += ["Float32"]
 __all__ += ["read_raw_dcl", "write_raw_dcl"]
+__all__ += ["read_raw_aef", "write_raw_aef"]
 
 
 def read_raw_arf(source) -> list[list]:

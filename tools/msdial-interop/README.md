@@ -22,6 +22,7 @@ Supported modes:
 | Mode | Check |
 | --- | --- |
 | `dcl` | Deserialize all MSDec results with the DCL reader |
+| `aef` | Deserialize all CSS1 spots and seek to the last spot |
 | `pai2`, `arf2`, `arf`, `mddata`, `msp2` | Deserialize the corresponding LCMS type |
 | `dbs-storage` | Deserialize an extracted DBS `Storage` entry |
 | `dataset` | Load the LCMS dataset with companion DBS and MSP2 files |

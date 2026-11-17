@@ -94,7 +94,7 @@ MIT
 ## Reader contract
 
 This is an alpha package; the import and distribution name is `msdialio`.
-Raw writers support ARF, ARF2, PAI2, MDDATA, DBS and DCL (see below).
+Raw writers support ARF, ARF2, PAI2, MDDATA, DBS, DCL and AEF (see below).
 The CLI can export JSON and CSV.
 
 All readers accept a path or a binary stream. Caller-owned streams remain open.
@@ -151,7 +151,7 @@ They are only exported from `msdialio.raw`.
 MessagePack strings become Python strings; binary values remain bytes. Invalid
 UTF-8 uses `surrogateescape` so bytes can be recovered by encoding with that
 error handler. Incomplete MessagePack objects raise an error. Raw reads retain
-all decoded data in memory. DCL uses its own Raw API described below; AEF has no Raw API.
+all decoded data in memory. DCL and AEF use their own Raw APIs described below.
 
 ## MS-DIAL 5 dataset and database files
 
@@ -287,7 +287,7 @@ Wire contracts were checked against the MS-DIAL source:
 ## Raw writers
 
 `msdialio.raw` exports `write_raw_arf`, `write_raw_arf2`, `write_raw_pai2`,
-`write_raw_mddata`, `write_raw_dbs`, and `write_raw_dcl`. Pass the corresponding raw reader's
+`write_raw_mddata`, `write_raw_dbs`, `write_raw_dcl`, and `write_raw_aef`. Pass the corresponding raw reader's
 result, not the interpreted `read_*` dictionaries (even with `slim=False`).
 
 ```python
@@ -332,7 +332,7 @@ MDDATA/DBS round trips, float32/float64 preservation, ZIP entry names, and LZ4/A
 wire layouts. Edited sample files were also checked in the MS-DIAL GUI; this is
 sample-based verification, not a guarantee for every version or dataset. The
 optional [C# interoperability probe](tools/msdial-interop/README.md) checks the
-actual deserializers and LCMS dataset initialization. AEF writing remains unsupported.
+actual deserializers and LCMS dataset initialization.
 
 ### Raw DCL editing
 
@@ -355,3 +355,23 @@ the scan's embedded seek point is replaced. The raw reader requires a seekable
 stream and a complete, contiguous DCL without trailing bytes. Both APIs hold the
 entire file in memory. As with other raw writers, paths use safe publication and
 streams are left open and can contain partial output on failure.
+
+### Raw AEF editing
+
+```python
+from msdialio.raw import read_raw_aef, write_raw_aef
+
+aef = read_raw_aef("alignment.EIC.aef")
+aef["spots"][0]["samples"][0]["chromatogram"][0][1] = 123.0
+write_raw_aef("alignment_modified.EIC.aef", aef)
+```
+
+The CSS1 header and ordered spots are retained. Each spot contains `rt`, `ri`,
+`mz`, `drift`, `main_type`, and `samples`. Each sample contains `file_id`,
+`peak_top`, `peak_left`, `peak_right`, and `[coordinate, intensity]` pairs in
+`chromatogram`. Stored bounds are preserved, although MS-DIAL files can contain
+incorrect bounds. Counts and spot pointers are rebuilt; keep spot order aligned
+with related alignment files. Values are written as float32. The raw reader
+requires a seekable stream and a contiguous file without trailing bytes. Reading
+and writing hold all data in memory. Paths and streams follow the writer contract
+above. MDI_PIXEL remains read-only.

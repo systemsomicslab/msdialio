@@ -27,7 +27,7 @@ XY座標・画像の縦横は含まれません。画像化には、強度と同
 ## Rawデータの書き込み
 
 `msdialio.raw` に `write_raw_arf`・`write_raw_arf2`・`write_raw_pai2`・
-`write_raw_mddata`・`write_raw_dbs` を用意しています。
+`write_raw_mddata`・`write_raw_dbs`・`write_raw_dcl`・`write_raw_aef` を用意しています。
 対応する `read_raw_*` の戻り値を渡してください。通常の `read_*` の戻り値は対象外です。
 
 ```python
@@ -61,12 +61,12 @@ ZIP内部のエントリ名をWindows形式のバックスラッシュ区切り�
 実ファイルの往復とバイナリ構造に加え、サンプルの編集結果をMS-DIALのGUIでも確認しています。
 全バージョン・全データセットの互換性を保証するものではありません。
 [C#互換性確認ツール](tools/msdial-interop/README.md)で実際の読み込み処理とLCMSデータセットの
-初期化も確認できます。AEFの書き込みは対象外です。
+初期化も確認できます。
 
 [English](README.md) | 日本語
 
 MS-DIALの `.arf`・`.arf2`・`.pai2`・`.dcl`・`.EIC.aef`・`.mddata`・`.dbs` を読むPythonパッケージです。
-読み込みに加え、Raw APIからARF・ARF2・PAI2・MDDATA・DBSの書き込みに対応します。
+読み込みに加え、Raw APIからARF・ARF2・PAI2・MDDATA・DBS・DCL・AEFの書き込みに対応します。
 
 ## インストール
 
@@ -140,7 +140,7 @@ Raw関数はトップレベルには公開しません。圧縮を展開してMe
 MessagePack文字列はstr、バイナリはbytesになります。不正なUTF-8は
 `surrogateescape` で保持し、同じエラーハンドラーで再エンコードできます。
 不完全なMessagePackはエラーにします。全データをメモリに保持するAPIです。
-DCLはMessagePack形式ではなく、専用のRaw APIを使用します。AEFのRaw APIはありません。
+DCLとAEFはMessagePack形式ではなく、専用のRaw APIを使用します。
 
 ### DCLのRaw編集
 
@@ -153,6 +153,18 @@ write_raw_dcl("sample_modified.dcl", dcl)
 ```
 
 対応形式はバージョン1です。`records` はファイル順で、対応するPAI2のピークやアラインメントスポットとの順序を維持してください。各レコードの `spectrum` は `[質量, 強度, 品質]`、`chromatogram` は `[ID, 座標, 質量, 強度]` の配列、`model_masses` は質量の配列です。`scan`、`quant`、`scoring` とGC-MSの `annotation` は未解釈のバイト列として保持します。アノテーションなしの場合は `None` です。件数とオフセットは書き込み時に再計算されます。読み込みにはseek可能なストリームと、末尾余剰データのない連続したDCLが必要です。全データをメモリに保持します。
+
+### AEFのRaw編集
+
+```python
+from msdialio.raw import read_raw_aef, write_raw_aef
+
+aef = read_raw_aef("alignment.EIC.aef")
+aef["spots"][0]["samples"][0]["chromatogram"][0][1] = 123.0
+write_raw_aef("alignment_modified.EIC.aef", aef)
+```
+
+CSS1のヘッダーとスポット順を保持します。各スポットには `rt`、`ri`、`mz`、`drift`、`main_type`、`samples` があり、各サンプルには `file_id`、`peak_top`、`peak_left`、`peak_right` と `[座標, 強度]` の `chromatogram` があります。左右端は保持しますが、MS-DIALのファイルでは値が不正な場合があります。件数とスポット位置は再計算されます。関連するアラインメントファイルとの順序を維持してください。数値はfloat32で保存します。読み込みにはseek可能なストリームと末尾余剰データのない連続したファイルが必要で、全データをメモリに保持します。MDI_PIXELは読み込み専用です。
 
 ## CLIと開発
 
