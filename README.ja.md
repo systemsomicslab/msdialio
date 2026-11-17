@@ -61,7 +61,7 @@ ZIP内部のエントリ名をWindows形式のバックスラッシュ区切り�
 実ファイルの往復とバイナリ構造に加え、サンプルの編集結果をMS-DIALのGUIでも確認しています。
 全バージョン・全データセットの互換性を保証するものではありません。
 [C#互換性確認ツール](tools/msdial-interop/README.md)で実際の読み込み処理とLCMSデータセットの
-初期化も確認できます。DCL・AEFの書き込みは対象外です。
+初期化も確認できます。AEFの書き込みは対象外です。
 
 [English](README.md) | 日本語
 
@@ -140,7 +140,19 @@ Raw関数はトップレベルには公開しません。圧縮を展開してMe
 MessagePack文字列はstr、バイナリはbytesになります。不正なUTF-8は
 `surrogateescape` で保持し、同じエラーハンドラーで再エンコードできます。
 不完全なMessagePackはエラーにします。全データをメモリに保持するAPIです。
-DCL・AEFはMessagePack形式ではないため、このRaw APIの対象外です。
+DCLはMessagePack形式ではなく、専用のRaw APIを使用します。AEFのRaw APIはありません。
+
+### DCLのRaw編集
+
+```python
+from msdialio.raw import read_raw_dcl, write_raw_dcl
+
+dcl = read_raw_dcl("sample.dcl")
+dcl["records"][0]["spectrum"][0][1] = 123.0  # 強度
+write_raw_dcl("sample_modified.dcl", dcl)
+```
+
+対応形式はバージョン1です。`records` はファイル順で、対応するPAI2のピークやアラインメントスポットとの順序を維持してください。各レコードの `spectrum` は `[質量, 強度, 品質]`、`chromatogram` は `[ID, 座標, 質量, 強度]` の配列、`model_masses` は質量の配列です。`scan`、`quant`、`scoring` とGC-MSの `annotation` は未解釈のバイト列として保持します。アノテーションなしの場合は `None` です。件数とオフセットは書き込み時に再計算されます。読み込みにはseek可能なストリームと、末尾余剰データのない連続したDCLが必要です。全データをメモリに保持します。
 
 ## CLIと開発
 

@@ -26,6 +26,16 @@ class VerifyMsdial {
         for (int i = 1; i < args.Length; i += 2) {
             string kind = args[i], path = args[i + 1];
             try {
+                if (kind == "dcl") {
+                    Type reader = core.GetType("CompMs.MsdialCore.Parser.MsdecResultsReader", true);
+                    MethodInfo read = reader.GetMethod("ReadMSDecResults", new Type[] {
+                        typeof(string), typeof(int).MakeByRefType(), typeof(List<long>).MakeByRefType() });
+                    object[] parameters = { path, 0, null };
+                    object results = read.Invoke(null, parameters);
+                    if (results == null) throw new InvalidDataException("Unsupported DCL version");
+                    Console.WriteLine("PASS DCL " + path + " records=" + ((System.Collections.ICollection)results).Count);
+                    continue;
+                }
                 if (kind == "dataset" || kind == "dataset-model") {
                     Assembly lcms = Assembly.LoadFrom(Path.Combine(assemblies, "MsdialLcMsApi.dll"));
                     Type storage = lcms.GetType("CompMs.MsdialLcMsApi.DataObj.MsdialLcmsDataStorage", true);

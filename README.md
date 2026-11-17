@@ -94,7 +94,7 @@ MIT
 ## Reader contract
 
 This is an alpha package; the import and distribution name is `msdialio`.
-Raw writers support ARF, ARF2, PAI2, MDDATA and DBS (see below).
+Raw writers support ARF, ARF2, PAI2, MDDATA, DBS and DCL (see below).
 The CLI can export JSON and CSV.
 
 All readers accept a path or a binary stream. Caller-owned streams remain open.
@@ -151,7 +151,7 @@ They are only exported from `msdialio.raw`.
 MessagePack strings become Python strings; binary values remain bytes. Invalid
 UTF-8 uses `surrogateescape` so bytes can be recovered by encoding with that
 error handler. Incomplete MessagePack objects raise an error. Raw reads retain
-all decoded data in memory. DCL/AEF are not MessagePack and have no Raw API here.
+all decoded data in memory. DCL uses its own Raw API described below; AEF has no Raw API.
 
 ## MS-DIAL 5 dataset and database files
 
@@ -287,7 +287,7 @@ Wire contracts were checked against the MS-DIAL source:
 ## Raw writers
 
 `msdialio.raw` exports `write_raw_arf`, `write_raw_arf2`, `write_raw_pai2`,
-`write_raw_mddata`, and `write_raw_dbs`. Pass the corresponding raw reader's
+`write_raw_mddata`, `write_raw_dbs`, and `write_raw_dcl`. Pass the corresponding raw reader's
 result, not the interpreted `read_*` dictionaries (even with `slim=False`).
 
 ```python
@@ -332,5 +332,26 @@ MDDATA/DBS round trips, float32/float64 preservation, ZIP entry names, and LZ4/A
 wire layouts. Edited sample files were also checked in the MS-DIAL GUI; this is
 sample-based verification, not a guarantee for every version or dataset. The
 optional [C# interoperability probe](tools/msdial-interop/README.md) checks the
-actual deserializers and LCMS dataset initialization. DCL/AEF writers remain
-unsupported.
+actual deserializers and LCMS dataset initialization. AEF writing remains unsupported.
+
+### Raw DCL editing
+
+```python
+from msdialio.raw import read_raw_dcl, write_raw_dcl
+
+dcl = read_raw_dcl("sample.dcl")
+dcl["records"][0]["spectrum"][0][1] = 123.0  # intensity
+write_raw_dcl("sample_modified.dcl", dcl)
+```
+
+Only DCL version 1 is supported. `records` retain file order, which must remain
+aligned with the corresponding PAI2 peaks or alignment spots. Each record has
+`spectrum` rows `[mass, intensity, peak_quality]`, `chromatogram` rows
+`[id, coordinate, mass, intensity]`, and `model_masses` floats. `scan`, `quant`,
+and `scoring` are opaque fixed-size bytes (60, 40, and 20 bytes). GC-MS
+`annotation` is preserved as opaque bytes, or `None` when disabled by the
+top-level `annotation` flag. Offsets and counts are regenerated on writing;
+the scan's embedded seek point is replaced. The raw reader requires a seekable
+stream and a complete, contiguous DCL without trailing bytes. Both APIs hold the
+entire file in memory. As with other raw writers, paths use safe publication and
+streams are left open and can contain partial output on failure.
